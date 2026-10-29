@@ -7,3 +7,5 @@ server.err.log
 .env
 .env.local
 *.log
+public/index.html
+public/dashboard.html

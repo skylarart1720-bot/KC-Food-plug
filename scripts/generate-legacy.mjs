@@ -11,9 +11,10 @@ try {
   }
   if (!ready) throw new Error('Local preview server did not start during the Vercel build.')
   await mkdir('public', { recursive: true })
-  await writeFile('public/index.html', await (await fetch('http://127.0.0.1:3000/')).text())
+  let storefront = await (await fetch('http://127.0.0.1:3000/')).text()
+  storefront = storefront.replace("window.open('https://wa.me/233501242319?text='+encodeURIComponent(text),'_blank')", "window.location.assign('https://wa.me/233501242319?text='+encodeURIComponent(text))")
+  await writeFile('public/index.html', storefront)
   await writeFile('public/dashboard.html', await (await fetch('http://127.0.0.1:3000/dashboard')).text())
 } finally {
   server.kill()
 }
-

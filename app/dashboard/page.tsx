@@ -1,0 +1,19 @@
+'use client'
+
+import { useEffect, useState } from 'react'
+
+type Order = { id: string; customer: { name: string; phone: string; area: string }; total: number; status: string; createdAt: string; items: Array<{ name: string; quantity: number }> }
+type DashboardData = { orders: Order[]; ordersToday: number; awaitingConfirmation: number; estimatedSales: number; activeProducts: number }
+const money = (value: number) => `GH₵ ${value.toFixed(2)}`
+
+export default function Dashboard() {
+  const [data, setData] = useState<DashboardData>({ orders: [], ordersToday: 0, awaitingConfirmation: 0, estimatedSales: 0, activeProducts: 6 })
+  const [tab, setTab] = useState('Overview')
+
+  async function refresh() { const response = await fetch('/api/dashboard', { cache: 'no-store' }); if (response.ok) setData(await response.json()) }
+  useEffect(() => { refresh(); const timer = window.setInterval(refresh, 2500); return () => window.clearInterval(timer) }, [])
+  async function setStatus(id: string, status: string) { await fetch(`/api/orders/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status }) }); refresh() }
+
+  return <main className="admin-page"><aside className="admin-sidebar"><a className="admin-brand" href="/">✦ <span>KFC — Chickenman<br /><small>PLUG ADMIN</small></span></a><nav>{['Overview', 'Live orders', 'Products', 'Carousel media', 'Restaurants', 'Settings'].map((item) => <button className={tab === item ? 'active' : ''} key={item} onClick={() => setTab(item)}>{item}</button>)}</nav><a className="admin-store-link" href="/">↗ Open storefront</a></aside><section className="admin-content"><header className="admin-header"><div><p className="admin-kicker">CONTROL CENTRE · LIVE SYNC</p><h1>{tab}</h1><p className="admin-muted">Orders from the storefront appear here automatically.</p></div><span className="live-pill"><i /> Live</span></header>{tab === 'Overview' || tab === 'Live orders' ? <><div className="admin-stats"><div><span>Orders today</span><strong>{data.ordersToday}</strong></div><div><span>Awaiting confirmation</span><strong>{data.awaitingConfirmation}</strong></div><div><span>Active products</span><strong>{data.activeProducts}</strong></div><div><span>Estimated sales</span><strong>{money(data.estimatedSales)}</strong></div></div><section className="admin-panel"><div className="panel-heading"><div><p className="admin-kicker">REAL-TIME QUEUE</p><h2>Recent orders</h2></div><span>{data.orders.length} total</span></div>{data.orders.length ? <div className="order-table">{data.orders.map((order) => <article className="order-card" key={order.id}><div><b>{order.id}</b><p>{order.customer.name} · {order.customer.phone}</p><small>{order.items.map((item) => `${item.name} ×${item.quantity}`).join(', ')}</small></div><strong>{money(order.total)}</strong><span className={`status ${order.status}`}>{order.status}</span><select value={order.status} onChange={(event) => setStatus(order.id, event.target.value)}><option value="received">Received</option><option value="processed">Processed</option><option value="delivered">Delivered</option><option value="cancelled">Cancelled</option></select></article>)}</div> : <div className="admin-empty"><span>✦</span><h3>No orders yet</h3><p>New WhatsApp checkout orders will be tracked here.</p></div>}</section></> : <section className="admin-panel placeholder"><p className="admin-kicker">WORKSPACE</p><h2>{tab}</h2><p>This connected workspace is ready for live data. Product and carousel management can be extended from this shared dashboard without changing the storefront.</p><a className="admin-button" href="/">View storefront</a></section>}</section></main>
+}
+

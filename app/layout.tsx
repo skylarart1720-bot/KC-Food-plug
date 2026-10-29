@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import './globals.css'
 import './admin.css'
+import './storefront.css'
 
 export const metadata: Metadata = {
   title: 'KFC — Chicken Man Plug',

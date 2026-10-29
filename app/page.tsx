@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
 type Restaurant = 'KFC' | 'Chickenman'
 type Product = { id: string; name: string; description: string; price: number; restaurant: Restaurant; category: string; image: string; badge?: string }
@@ -23,6 +23,13 @@ export default function Home() {
   const [showCart, setShowCart] = useState(false)
   const [showCheckout, setShowCheckout] = useState(false)
   const [search, setSearch] = useState('')
+  const [carouselIndex, setCarouselIndex] = useState(0)
+  const carouselSlides = [
+    { title: 'Crispy comfort', text: 'Big flavour, straight to your door.', image: products[0].image },
+    { title: 'Hot, fresh, plugged in', text: 'KFC classics and Chickenman favourites.', image: products[3].image },
+    { title: 'Share the good stuff', text: 'Build one basket from both menus.', image: products[5].image },
+  ]
+  useEffect(() => { const timer = window.setInterval(() => setCarouselIndex((index) => (index + 1) % carouselSlides.length), 4500); return () => window.clearInterval(timer) }, [carouselSlides.length])
 
   const visibleProducts = useMemo(() => products.filter((product) => {
     const matchesRestaurant = activeRestaurant === 'All' || product.restaurant === activeRestaurant
@@ -51,6 +58,7 @@ export default function Home() {
       <div className="hero-art"><div className="art-card card-a"><span>✦</span><b>CRISPY<br />&amp; FRESH</b></div><div className="art-card card-b"><span>HOT<br /><i>stuff.</i></span></div><div className="hero-photo" /></div>
     </section>
 
+    <section className="food-carousel shell" aria-label="Featured food"><div className="carousel-copy"><p className="eyebrow">TODAY'S FEATURED PLUG</p><h2>{carouselSlides[carouselIndex].title}</h2><p>{carouselSlides[carouselIndex].text}</p><a className="button dark" href="#menu">Order the good stuff <span>↘</span></a></div><div className="carousel-stage" style={{ backgroundImage: `url(${carouselSlides[carouselIndex].image})` }}><span className="carousel-sticker">FRESH<br />DROP ✦</span><div className="carousel-controls"><button onClick={() => setCarouselIndex((carouselIndex - 1 + carouselSlides.length) % carouselSlides.length)} aria-label="Previous featured food">←</button>{carouselSlides.map((item, index) => <button key={item.title} className={index === carouselIndex ? 'selected' : ''} onClick={() => setCarouselIndex(index)} aria-label={`Show ${item.title}`} />)}<button onClick={() => setCarouselIndex((carouselIndex + 1) % carouselSlides.length)} aria-label="Next featured food">→</button></div></div></section>
     <section className="trust-strip"><div className="shell trust-inner"><span>THE PLUG FOR</span><strong>KFC</strong><i>×</i><strong>CHICKENMAN</strong><span className="trust-right">ONE CART · ONE WHATSAPP ORDER</span></div></section>
 
     <section className="menu-section shell" id="menu"><div className="section-heading"><div><p className="eyebrow">PICK YOUR PLEASURE</p><h2>What are you<br /><i>feeling today?</i></h2></div><div className="restaurant-tabs"><button className={activeRestaurant === 'All' ? 'selected' : ''} onClick={() => setActiveRestaurant('All')}>All dishes</button><button className={activeRestaurant === 'KFC' ? 'selected' : ''} onClick={() => setActiveRestaurant('KFC')}>KFC</button><button className={activeRestaurant === 'Chickenman' ? 'selected' : ''} onClick={() => setActiveRestaurant('Chickenman')}>Chickenman</button></div></div><div className="menu-tools"><div className="search"><span>⌕</span><input aria-label="Search menu" placeholder="Search the menu" value={search} onChange={(e) => setSearch(e.target.value)} /></div><span className="result-count">{visibleProducts.length} dishes</span></div><div className="product-grid">{visibleProducts.map((product) => <article className="product-card" key={product.id}><div className="product-image" style={{ backgroundImage: `url(${product.image})` }}>{product.badge && <span className="badge">{product.badge}</span>}<span className={`restaurant-tag ${product.restaurant === 'KFC' ? 'red' : 'orange'}`}>{product.restaurant === 'KFC' ? 'KFC' : 'CHICKENMAN'}</span></div><div className="product-info"><div><h3>{product.name}</h3><p>{product.description}</p></div><div className="product-footer"><strong>{money(product.price)}</strong><button className="add-button" onClick={() => add(product)} aria-label={`Add ${product.name} to cart`}>+</button></div></div></article>)}</div></section>

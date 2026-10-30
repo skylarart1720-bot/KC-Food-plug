@@ -20,6 +20,7 @@ const deliveryFee = (itemCount: number) => itemCount <= 0 ? 0 : itemCount === 1 
 export default function Home() {
   const [activeRestaurant, setActiveRestaurant] = useState<'All' | Restaurant>('All')
   const [cart, setCart] = useState<Record<string, number>>({})
+  const [cartReady, setCartReady] = useState(false)
   const [showCart, setShowCart] = useState(false)
   const [showCheckout, setShowCheckout] = useState(false)
   const [search, setSearch] = useState('')
@@ -41,6 +42,18 @@ export default function Home() {
   const count = cartItems.reduce((total, item) => total + item.quantity, 0)
   const subtotal = cartItems.reduce((total, item) => total + item.price * item.quantity, 0)
   const delivery = deliveryFee(count)
+
+  useEffect(() => {
+    try {
+      const savedCart = window.localStorage.getItem('kc-food-plug-cart')
+      if (savedCart) setCart(JSON.parse(savedCart))
+    } catch {}
+    setCartReady(true)
+  }, [])
+
+  useEffect(() => {
+    if (cartReady) window.localStorage.setItem('kc-food-plug-cart', JSON.stringify(cart))
+  }, [cart, cartReady])
 
   function add(product: Product) { setCart((current) => ({ ...current, [product.id]: (current[product.id] || 0) + 1 })) }
   function change(id: string, amount: number) { setCart((current) => { const next = Math.max(0, (current[id] || 0) + amount); const copy = { ...current }; if (next) copy[id] = next; else delete copy[id]; return copy }) }
@@ -86,8 +99,8 @@ function Checkout({ subtotal, items, onClose, onComplete }: { subtotal: number; 
     if (!response.ok) { setError(result.error || 'We could not record this order.'); return }
     const lines = items.map((item) => `- ${item.name} x${item.quantity} - ${money(item.price * item.quantity)}`).join('%0A')
     const message = `NEW FOOD ORDER%0A%0AOrder reference: ${result.order.id}%0AName: ${encodeURIComponent(form.name)}%0APhone: ${encodeURIComponent(form.phone)}%0AArea: ${encodeURIComponent(form.area)}%0AAddress: ${encodeURIComponent(form.address)}%0A%0AORDER%0A${lines}%0A%0ASubtotal: ${money(subtotal)}%0ADelivery: ${money(delivery)}%0ATotal: ${money(subtotal + delivery)}%0A%0ANotes: ${encodeURIComponent(form.notes || 'None')}`
-    window.location.assign(`https://wa.me/233501242319?text=${message}`)
     onComplete()
+    window.location.assign(`https://wa.me/233501242319?text=${message}`)
   }
   function submit(e: React.FormEvent) { e.preventDefault(); if (!form.name || !form.phone || !form.area || !form.address) { setError('Please fill in your name, phone, area and address.'); return } const reference = `PLUG-${Math.random().toString(36).slice(2, 8).toUpperCase()}`; const lines = items.map((item) => `• ${item.name} x${item.quantity} — ${money(item.price * item.quantity)}`).join('%0A'); const message = `🍗 NEW FOOD ORDER%0A%0AOrder reference: ${reference}%0AName: ${encodeURIComponent(form.name)}%0APhone: ${encodeURIComponent(form.phone)}%0AArea: ${encodeURIComponent(form.area)}%0AAddress: ${encodeURIComponent(form.address)}%0A%0AORDER%0A${lines}%0A%0ASubtotal: ${money(subtotal)}%0ADelivery: To be confirmed%0A%0ANotes: ${encodeURIComponent(form.notes || 'None')}%0A%0APlease confirm availability and final delivery charge.`; window.open(`https://wa.me/233501242319?text=${message}`, '_blank'); }
   return <div className="overlay"><div className="checkout"><button className="close" onClick={onClose}>×</button><p className="eyebrow">ALMOST THERE</p><h2>Send your order<br /><i>on WhatsApp.</i></h2><p className="checkout-note">We’ll confirm availability and the final delivery fee with you.</p><form onSubmit={submitOrder}><label>Full name<input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="e.g. Ama Mensah" /></label><label>Phone number<input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="e.g. 024 000 0000" /></label><label>Delivery area<input value={form.area} onChange={(e) => setForm({ ...form, area: e.target.value })} placeholder="e.g. East Legon" /></label><label>Address or landmark<input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} placeholder="Where should we meet you?" /></label><label>Anything else? <span>(optional)</span><textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} placeholder="Extra sauce, call on arrival..." /></label>{error && <p className="form-error">{error}</p>}<button className="button primary full" type="submit">Open WhatsApp <span>↗</span></button><small className="send-note">Your order is not confirmed until you press Send in WhatsApp.</small></form></div></div>

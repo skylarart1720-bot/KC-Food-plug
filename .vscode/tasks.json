@@ -7,6 +7,34 @@
 			"command": "npm run dev",
 			"isBackground": true,
 			"problemMatcher": []
+		},
+		{
+			"label": "Start project development server",
+			"type": "shell",
+			"command": "npm run dev",
+			"isBackground": true,
+			"problemMatcher": []
+		},
+		{
+			"label": "Inspect package scripts",
+			"type": "shell",
+			"command": "node -e \"console.log(require('./package.json').scripts)\" ",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Start frontend",
+			"type": "shell",
+			"command": "npm run frontend",
+			"isBackground": true,
+			"problemMatcher": []
+		},
+		{
+			"label": "Start backend",
+			"type": "shell",
+			"command": "npm run backend",
+			"isBackground": true,
+			"problemMatcher": []
 		}
 	]
 }

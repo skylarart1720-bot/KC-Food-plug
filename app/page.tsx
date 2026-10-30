@@ -79,7 +79,6 @@ function Checkout({ subtotal, items, onClose, onComplete }: { subtotal: number; 
   const [error, setError] = useState('')
   async function submitOrder(e: React.FormEvent) {
     e.preventDefault()
-    if (!form.name || !form.phone || !form.area || !form.address) { setError('Please fill in your name, phone, area and address.'); return }
     const itemCount = items.reduce((sum, item) => sum + item.quantity, 0)
     const delivery = itemCount === 1 ? 20 : itemCount === 2 ? 40 : itemCount === 3 ? 50 : itemCount * 20
     const response = await fetch('/api/orders', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ customer: form, items: items.map((item) => ({ id: item.id, name: item.name, restaurant: item.restaurant, quantity: item.quantity, price: item.price })), subtotal, delivery, total: subtotal + delivery }) })

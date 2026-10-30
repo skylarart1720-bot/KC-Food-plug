@@ -7,8 +7,8 @@ export async function GET() {
 
 export async function POST(request: Request) {
   const body = await request.json().catch(() => null)
-  if (!body?.customer?.name || !body?.customer?.phone || !Array.isArray(body.items) || !body.items.length) {
-    return NextResponse.json({ error: 'Customer details and at least one item are required.' }, { status: 400 })
+  if (!Array.isArray(body?.items) || !body.items.length) {
+    return NextResponse.json({ error: 'At least one item is required.' }, { status: 400 })
   }
 
   const order: StoredOrder = {
@@ -24,4 +24,3 @@ export async function POST(request: Request) {
   orderStore.unshift(order)
   return NextResponse.json({ order }, { status: 201 })
 }
-

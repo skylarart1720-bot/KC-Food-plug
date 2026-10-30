@@ -1,24 +1,14 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-
-type Restaurant = 'KFC' | 'Chickenman'
-type Product = { id: string; name: string; description: string; price: number; restaurant: Restaurant; category: string; image: string; badge?: string }
-
-const products: Product[] = [
-  { id: 'kfc-bucket', name: 'Streetwise Bucket', description: 'Crispy chicken, chips and a cool drink for the table.', price: 115, restaurant: 'KFC', category: 'Buckets', image: 'https://images.unsplash.com/photo-1626082927389-6cd097cdc6ec?auto=format&fit=crop&w=900&q=85', badge: 'Fan favourite' },
-  { id: 'kfc-burger', name: 'Zinger Burger', description: 'Hot & crispy chicken, fresh lettuce and signature sauce.', price: 72, restaurant: 'KFC', category: 'Burgers', image: 'https://images.unsplash.com/photo-1606755962773-d324e0a13086?auto=format&fit=crop&w=900&q=85' },
-  { id: 'kfc-wings', name: 'Hot Wings', description: 'Tender, fiery wings made for sharing.', price: 58, restaurant: 'KFC', category: 'Chicken', image: 'https://images.unsplash.com/photo-1527477396000-e27163b481c2?auto=format&fit=crop&w=900&q=85', badge: 'Spicy' },
-  { id: 'cm-pizza', name: 'Chickenman Special', description: 'Loaded pizza with chicken, peppers, onions and cheese.', price: 98, restaurant: 'Chickenman', category: 'Pizza', image: 'https://images.unsplash.com/photo-1579751626657-72bc17010498?auto=format&fit=crop&w=900&q=85', badge: 'Best seller' },
-  { id: 'cm-fried-rice', name: 'Chicken Fried Rice', description: 'Fragrant fried rice, tender chicken and fresh vegetables.', price: 65, restaurant: 'Chickenman', category: 'Meals', image: 'https://images.unsplash.com/photo-1603133872878-684f208fb84b?auto=format&fit=crop&w=900&q=85' },
-  { id: 'cm-wings', name: 'Chickenman Wings', description: 'Crispy glazed wings with your choice of heat.', price: 68, restaurant: 'Chickenman', category: 'Chicken', image: 'https://images.unsplash.com/photo-1567620832903-9fc6debc209f?auto=format&fit=crop&w=900&q=85' },
-]
+import { defaultProducts, Product, Restaurant } from '../lib/catalog-store'
 
 const money = (value: number) => `GH₵ ${value.toFixed(2)}`
 const deliveryFee = (itemCount: number) => itemCount <= 0 ? 0 : itemCount === 1 ? 20 : itemCount === 2 ? 40 : itemCount === 3 ? 50 : itemCount * 20
 
 export default function Home() {
   const [activeRestaurant, setActiveRestaurant] = useState<'All' | Restaurant>('All')
+  const [products, setProducts] = useState<Product[]>(defaultProducts)
   const [cart, setCart] = useState<Record<string, number>>({})
   const [cartReady, setCartReady] = useState(false)
   const [showCart, setShowCart] = useState(false)
@@ -33,7 +23,7 @@ export default function Home() {
   useEffect(() => { const timer = window.setInterval(() => setCarouselIndex((index) => (index + 1) % carouselSlides.length), 4500); return () => window.clearInterval(timer) }, [carouselSlides.length])
 
   const visibleProducts = useMemo(() => products.filter((product) => {
-    const matchesRestaurant = activeRestaurant === 'All' || product.restaurant === activeRestaurant
+    const matchesRestaurant = product.active && (activeRestaurant === 'All' || product.restaurant === activeRestaurant)
     const query = search.toLowerCase()
     return matchesRestaurant && (!query || `${product.name} ${product.description}`.toLowerCase().includes(query))
   }), [activeRestaurant, search])
@@ -42,6 +32,10 @@ export default function Home() {
   const count = cartItems.reduce((total, item) => total + item.quantity, 0)
   const subtotal = cartItems.reduce((total, item) => total + item.price * item.quantity, 0)
   const delivery = deliveryFee(count)
+
+  useEffect(() => {
+    fetch('/api/products', { cache: 'no-store' }).then((response) => response.ok ? response.json() : null).then((payload) => { if (payload?.products?.length) setProducts(payload.products) }).catch(() => {})
+  }, [])
 
   useEffect(() => {
     try {

@@ -47,11 +47,11 @@ export default function Home() {
 
   return <main>
     <style jsx global>{`\n      .nav { position: sticky; top: 0; z-index: 20; background: rgba(245, 241, 233, .94); backdrop-filter: blur(14px); }\n      .hero { padding-top: 52px; padding-bottom: 58px; }\n      .hero h1 { font-size: 16px; letter-spacing: 0; line-height: 1.2; display: flex; gap: 5px; margin: 12px 0 8px; }\n      .hero h1 br { display: none; }\n      .hero-text { font-size: 12px; margin: 0; }\n      .hero-actions { margin-top: 16px; }\n      .hero-art { background: linear-gradient(145deg, rgba(0,0,0,.08), rgba(0,0,0,.2)), url('https://images.unsplash.com/photo-1513104890138-7c749659a591?auto=format&fit=crop&w=900&q=85') center/cover; border-radius: 10px; }\n      @media (max-width: 800px) { .hero { padding-top: 42px; } .hero h1 { font-size: 14px; } }\n    `}</style>
-    <header className="nav shell">
+    <header className="nav"><div className="nav-inner shell">
       <a className="brand" href="#top" aria-label="KFC Chicken Man Plug home"><span className="brand-mark">✦</span><span><strong>KFC</strong> <em>CHICKEN MAN</em><small>PLUG</small></span></a>
       <nav className="desktop-nav" aria-label="Menu navigation"><button className={activeRestaurant === 'All' ? 'active' : ''} onClick={() => { setActiveRestaurant('All'); document.getElementById('menu')?.scrollIntoView({ behavior: 'smooth' }) }}>All dishes</button><button className={activeRestaurant === 'KFC' ? 'active' : ''} onClick={() => { setActiveRestaurant('KFC'); document.getElementById('menu')?.scrollIntoView({ behavior: 'smooth' }) }}>KFC</button><button className={activeRestaurant === 'Chickenman' ? 'active' : ''} onClick={() => { setActiveRestaurant('Chickenman'); document.getElementById('menu')?.scrollIntoView({ behavior: 'smooth' }) }}>Chickenman</button></nav>
       <button className="cart-button" onClick={() => setShowCart(true)} aria-label={`Open cart with ${count} items`}>Cart <span>{count}</span></button>
-    </header>
+    </div></header>
 
     <section className="hero shell" id="top">
       <div className="hero-copy"><p className="eyebrow">GOOD FOOD. ZERO STRESS.</p><h1>Your cravings,<br /><span>plugged in.</span></h1><p className="hero-text">KFC classics and Chickenman favourites, brought together in one simple order.</p><div className="hero-actions"><a className="button primary" href="#menu">Explore the menu <span>↘</span></a><a className="text-link" href="#how-it-works">How it works <span>→</span></a></div><div className="hero-note"><span>◎</span> Order direct on WhatsApp<br /><small>We confirm every order personally.</small></div></div>

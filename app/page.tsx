@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { defaultCarousel, defaultCategories, defaultProducts, CarouselSlide, Category, Product, Restaurant } from '../lib/catalog-store'
+import { jsPDF } from 'jspdf'
 
 const money = (value: number) => `GH₵ ${value.toFixed(2)}`
 const deliveryFee = (itemCount: number) => itemCount <= 0 ? 0 : itemCount === 1 ? 20 : itemCount === 2 ? 40 : itemCount === 3 ? 50 : itemCount * 20
@@ -71,7 +72,7 @@ export default function Home() {
     <section className="food-carousel shell" aria-label="Featured food"><div className="carousel-copy"><p className="eyebrow">TODAY'S FEATURED PLUG</p><h2>{carouselSlides[carouselIndex].title}</h2><p>{carouselSlides[carouselIndex].text}</p><a className="button dark" href="#menu">Order the good stuff <span>↘</span></a></div><div className="carousel-stage" style={{ backgroundImage: `url(${carouselSlides[carouselIndex].image})` }}><span className="carousel-sticker">FRESH<br />DROP ✦</span><div className="carousel-controls"><button onClick={() => setCarouselIndex((carouselIndex - 1 + carouselSlides.length) % carouselSlides.length)} aria-label="Previous featured food">←</button>{carouselSlides.map((item, index) => <button key={item.title} className={index === carouselIndex ? 'selected' : ''} onClick={() => setCarouselIndex(index)} aria-label={`Show ${item.title}`} />)}<button onClick={() => setCarouselIndex((carouselIndex + 1) % carouselSlides.length)} aria-label="Next featured food">→</button></div></div></section>
     <section className="trust-strip"><div className="shell trust-inner"><span>THE PLUG FOR</span><strong>KFC</strong><i>×</i><strong>CHICKENMAN</strong><span className="trust-right">ONE CART · ONE WHATSAPP ORDER</span></div></section>
 
-    <section className="category-navigation shell" aria-label="Browse by category"><div className="category-heading"><div><p className="eyebrow">BROWSE THE PLUG</p><h2>Find your<br /><i>favourite lane.</i></h2></div><button className="category-reset" onClick={() => setActiveCategoryId(null)}>Show all dishes <span>→</span></button></div><div className="category-grid">{categories.filter((category) => category.restaurant === 'Both' || activeRestaurant === 'All' || category.restaurant === activeRestaurant).map((category) => <button className={`category-card ${activeCategoryId === category.id ? 'selected' : ''}`} key={category.id} onClick={() => { setActiveCategoryId(category.id); document.getElementById('menu')?.scrollIntoView({ behavior: 'smooth' }) }}><span className="category-card-image" style={{ backgroundImage: `url(${category.image})` }} />{category.badge && <span className="category-badge">{category.badge}</span>}<span className="category-card-copy"><strong>{category.name}</strong><small>{category.description}</small><em>{category.restaurant === 'Both' ? 'KFC + Chickenman' : category.restaurant}</em></span></button>)}</div></section>
+    <section className="category-navigation shell" aria-label="Browse by category"><div className="category-heading"><div><p className="eyebrow">BROWSE THE PLUG</p><h2>Find your<br /><i>favourite lane.</i></h2></div><button className="category-reset" onClick={() => setActiveCategoryId(null)}>Show all dishes <span>→</span></button></div><div className="category-grid">{categories.map((category) => <button className={`category-card ${activeCategoryId === category.id ? 'selected' : ''}`} key={category.id} onClick={() => { setActiveCategoryId(category.id); document.getElementById('menu')?.scrollIntoView({ behavior: 'smooth' }) }}><span className="category-card-copy"><strong>{category.name}</strong></span></button>)}</div></section>
     <section className="menu-section shell" id="menu"><div className="section-heading"><div><p className="eyebrow">{activeCategoryId ? categories.find((category) => category.id === activeCategoryId)?.name : 'PICK YOUR PLEASURE'}</p><h2>{activeCategoryId ? 'Good stuff,' : 'What are you'}<br /><i>{activeCategoryId ? 'sorted by craving.' : 'feeling today?'}</i></h2></div><div className="restaurant-tabs"><button className={activeRestaurant === 'All' && !activeCategoryId ? 'selected' : ''} onClick={() => selectRestaurant('All')}>All dishes</button><button className={activeRestaurant === 'KFC' && !activeCategoryId ? 'selected' : ''} onClick={() => selectRestaurant('KFC')}>KFC</button><button className={activeRestaurant === 'Chickenman' && !activeCategoryId ? 'selected' : ''} onClick={() => selectRestaurant('Chickenman')}>Chickenman</button></div></div><div className="menu-tools"><div className="search"><span>⌕</span><input aria-label="Search menu" placeholder="Search the menu" value={search} onChange={(e) => setSearch(e.target.value)} /></div><span className="result-count">{visibleProducts.length} dishes</span></div><div className="product-grid">{visibleProducts.map((product) => <article className="product-card" key={product.id} tabIndex={0} onClick={() => setSelectedProduct(product)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); setSelectedProduct(product) } }} aria-label={`View details for ${product.name}`}><div className="product-image" style={{ backgroundImage: `url(${product.image})` }}>{product.badge && <span className="badge">{product.badge}</span>}<span className={`restaurant-tag ${product.restaurant === 'KFC' ? 'red' : 'orange'}`}>{product.restaurant === 'KFC' ? 'KFC' : 'CHICKENMAN'}</span></div><div className="product-info"><div><h3>{product.name}</h3><p>{product.description}</p></div><div className="product-footer"><strong>{money(product.price)}</strong><button className="add-button" onClick={(event) => { event.stopPropagation(); add(product) }} aria-label={`Add ${product.name} to cart`}>+</button></div><button className="details-link" onClick={() => setSelectedProduct(product)}>View full details <span>→</span></button></div></article>)}</div></section>
 
     <section className="how shell" id="how-it-works"><div className="how-intro"><p className="eyebrow">NO APP. NO ACCOUNT.</p><h2>Just good food<br /><i>on the way.</i></h2><p>We make ordering as easy as sending a message to a friend.</p></div><div className="steps"><div><span>01</span><h3>Choose your food</h3><p>Browse KFC and Chickenman in one menu.</p></div><div><span>02</span><h3>Build your basket</h3><p>Mix favourites from both spots. No problem.</p></div><div><span>03</span><h3>Send on WhatsApp</h3><p>We confirm availability, price and delivery.</p></div></div></section>
@@ -89,6 +90,30 @@ export default function Home() {
 function Checkout({ subtotal, items, onClose, onComplete }: { subtotal: number; items: Array<Product & { quantity: number }>; onClose: () => void; onComplete: () => void }) {
   const [form, setForm] = useState({ name: '', phone: '', area: '', address: '', notes: '' })
   const [error, setError] = useState('')
+  function createReceipt(orderId: string, delivery: number, total: number) {
+    const pdf = new jsPDF()
+    pdf.setFontSize(20)
+    pdf.text('KFC — Chicken Man Plug', 20, 22)
+    pdf.setFontSize(10)
+    pdf.text('ORDER RECEIPT', 20, 31)
+    pdf.text(`Reference: ${orderId}`, 20, 39)
+    pdf.text(`Date: ${new Date().toLocaleString()}`, 20, 46)
+    pdf.line(20, 52, 190, 52)
+    pdf.setFontSize(11)
+    pdf.text(`Customer: ${form.name}`, 20, 63)
+    pdf.text(`Phone: ${form.phone}`, 20, 70)
+    pdf.text(`Delivery: ${form.area}`, 20, 77)
+    let y = 91
+    items.forEach((item) => { const line = `${item.name} x${item.quantity} — GH₵ ${(item.price * item.quantity).toFixed(2)}`; pdf.text(line.slice(0, 80), 20, y); y += 8 })
+    pdf.line(20, y + 2, 190, y + 2)
+    pdf.text(`Subtotal: GH₵ ${subtotal.toFixed(2)}`, 20, y + 12)
+    pdf.text(`Delivery: GH₵ ${delivery.toFixed(2)}`, 20, y + 20)
+    pdf.setFontSize(13)
+    pdf.text(`Total: GH₵ ${total.toFixed(2)}`, 20, y + 31)
+    pdf.setFontSize(9)
+    pdf.text('Please confirm availability and delivery with us on WhatsApp.', 20, y + 45)
+    pdf.save(`${orderId}-receipt.pdf`)
+  }
   async function submitOrder(e: React.FormEvent) {
     e.preventDefault()
     const itemCount = items.reduce((sum, item) => sum + item.quantity, 0)
@@ -98,6 +123,7 @@ function Checkout({ subtotal, items, onClose, onComplete }: { subtotal: number; 
     if (!response.ok) { setError(result.error || 'We could not record this order.'); return }
     const lines = items.map((item) => `- ${item.name} x${item.quantity} - ${money(item.price * item.quantity)}`).join('%0A')
     const message = `NEW FOOD ORDER%0A%0AOrder reference: ${result.order.id}%0AName: ${encodeURIComponent(form.name)}%0APhone: ${encodeURIComponent(form.phone)}%0AArea: ${encodeURIComponent(form.area)}%0AAddress: ${encodeURIComponent(form.address)}%0A%0AORDER%0A${lines}%0A%0ASubtotal: ${money(subtotal)}%0ADelivery: ${money(delivery)}%0ATotal: ${money(subtotal + delivery)}%0A%0ANotes: ${encodeURIComponent(form.notes || 'None')}`
+    createReceipt(result.order.id, delivery, subtotal + delivery)
     onComplete()
     window.location.assign(`https://wa.me/233501242319?text=${message}`)
   }

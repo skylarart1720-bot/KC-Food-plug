@@ -13,7 +13,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   if (body?.restaurant !== undefined) category.restaurant = body.restaurant
   if (body?.badge !== undefined) category.badge = body.badge ? String(body.badge).trim() : undefined
   if (body?.active !== undefined) category.active = Boolean(body.active)
-  if (!category.name || !category.image) return NextResponse.json({ error: 'Name and image are required.' }, { status: 400 })
+  if (!category.name) return NextResponse.json({ error: 'Category name is required.' }, { status: 400 })
   return NextResponse.json({ category })
 }
 

@@ -40,11 +40,11 @@ export const defaultProducts: Product[] = [
 ]
 
 export const defaultCategories: Category[] = [
-  { id: 'buckets', name: 'Buckets', description: 'Big sharing boxes for the whole table.', image: defaultProducts[0].image, restaurant: 'KFC', badge: 'Shareable', active: true },
-  { id: 'burgers', name: 'Burgers', description: 'Crispy, saucy favourites made to satisfy.', image: defaultProducts[1].image, restaurant: 'KFC', active: true },
+  { id: 'buckets', name: 'Buckets', description: 'Big sharing boxes for the whole table.', image: defaultProducts[0].image, restaurant: 'Both', badge: 'Shareable', active: true },
+  { id: 'burgers', name: 'Burgers', description: 'Crispy, saucy favourites made to satisfy.', image: defaultProducts[1].image, restaurant: 'Both', active: true },
   { id: 'chicken', name: 'Chicken', description: 'Golden, crispy chicken with serious flavour.', image: defaultProducts[2].image, restaurant: 'Both', badge: 'Fan favourite', active: true },
-  { id: 'pizza', name: 'Pizza', description: 'Loaded slices with Chickenman energy.', image: defaultProducts[3].image, restaurant: 'Chickenman', active: true },
-  { id: 'meals', name: 'Meals', description: 'Complete plates when you want the full plug.', image: defaultProducts[4].image, restaurant: 'Chickenman', active: true },
+  { id: 'pizza', name: 'Pizza', description: 'Loaded slices with Chickenman energy.', image: defaultProducts[3].image, restaurant: 'Both', active: true },
+  { id: 'meals', name: 'Meals', description: 'Complete plates when you want the full plug.', image: defaultProducts[4].image, restaurant: 'Both', active: true },
 ]
 
 export const defaultCarousel: CarouselSlide[] = [

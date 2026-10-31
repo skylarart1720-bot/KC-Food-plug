@@ -36,6 +36,9 @@ export default function CatalogManager({ mode }: { mode: 'Products' | 'Categorie
 
   function resetProductForm() { setProduct({ ...emptyProduct }); setEditingProductId(null) }
   function resetCategoryForm() { setCategory({ ...emptyCategory }); setEditingCategoryId(null) }
+  useEffect(() => {
+    if (mode === 'Products') setCategories((items) => items.map((item) => ({ ...item, restaurant: 'Both' as const })))
+  }, [mode])
 
   async function refresh() {
     if (mode === 'Products') { const [productsResponse, categoriesResponse] = await Promise.all([fetch('/api/products', { cache: 'no-store' }), fetch('/api/categories', { cache: 'no-store' })]); setProducts((await productsResponse.json()).products || []); setCategories((await categoriesResponse.json()).categories || []) }

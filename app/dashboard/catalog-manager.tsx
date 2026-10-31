@@ -45,6 +45,7 @@ export default function CatalogManager({ mode }: { mode: 'Products' | 'Categorie
     else setSettings((await (await fetch('/api/settings', { cache: 'no-store' })).json()).settings || settings)
   }
   useEffect(() => { refresh().catch(() => setMessage('Could not load content.')) }, [mode])
+  useEffect(() => { if (mode === 'Categories') { const form = document.querySelector('.category-manager-form'); form?.setAttribute('novalidate', 'true'); form?.querySelectorAll('textarea, input[type="file"]').forEach((field) => field.removeAttribute('required')) } }, [mode])
 
   async function saveProduct(event: FormEvent) {
     event.preventDefault()

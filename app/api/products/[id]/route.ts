@@ -10,7 +10,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   if (body?.name !== undefined) product.name = String(body.name).trim()
   if (body?.description !== undefined) product.description = String(body.description).trim()
   if (body?.restaurant !== undefined) product.restaurant = body.restaurant
-  if (body?.category !== undefined) product.category = String(body.category).trim()
+  if (body?.category !== undefined) product.category = body.category ? String(body.category).trim() : undefined
   if (body?.image !== undefined) product.image = String(body.image)
   if (body?.badge !== undefined) product.badge = body.badge ? String(body.badge).trim() : undefined
   if (body?.active !== undefined) product.active = Boolean(body.active)

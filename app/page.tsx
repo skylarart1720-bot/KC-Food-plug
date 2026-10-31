@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { defaultCarousel, defaultCategories, defaultProducts, CarouselSlide, Category, Product, Restaurant } from '../lib/catalog-store'
-import { jsPDF } from 'jspdf'
 
 const money = (value: number) => `GH₵ ${value.toFixed(2)}`
 const deliveryFee = (itemCount: number) => itemCount <= 0 ? 0 : itemCount === 1 ? 20 : itemCount === 2 ? 40 : itemCount === 3 ? 50 : itemCount * 20
@@ -90,30 +89,6 @@ export default function Home() {
 function Checkout({ subtotal, items, onClose, onComplete }: { subtotal: number; items: Array<Product & { quantity: number }>; onClose: () => void; onComplete: () => void }) {
   const [form, setForm] = useState({ name: '', phone: '', area: '', address: '', notes: '' })
   const [error, setError] = useState('')
-  function createReceipt(orderId: string, delivery: number, total: number) {
-    const pdf = new jsPDF()
-    pdf.setFontSize(20)
-    pdf.text('KFC — Chicken Man Plug', 20, 22)
-    pdf.setFontSize(10)
-    pdf.text('ORDER RECEIPT', 20, 31)
-    pdf.text(`Reference: ${orderId}`, 20, 39)
-    pdf.text(`Date: ${new Date().toLocaleString()}`, 20, 46)
-    pdf.line(20, 52, 190, 52)
-    pdf.setFontSize(11)
-    pdf.text(`Customer: ${form.name}`, 20, 63)
-    pdf.text(`Phone: ${form.phone}`, 20, 70)
-    pdf.text(`Delivery: ${form.area}`, 20, 77)
-    let y = 91
-    items.forEach((item) => { const line = `${item.name} x${item.quantity} — GH₵ ${(item.price * item.quantity).toFixed(2)}`; pdf.text(line.slice(0, 80), 20, y); y += 8 })
-    pdf.line(20, y + 2, 190, y + 2)
-    pdf.text(`Subtotal: GH₵ ${subtotal.toFixed(2)}`, 20, y + 12)
-    pdf.text(`Delivery: GH₵ ${delivery.toFixed(2)}`, 20, y + 20)
-    pdf.setFontSize(13)
-    pdf.text(`Total: GH₵ ${total.toFixed(2)}`, 20, y + 31)
-    pdf.setFontSize(9)
-    pdf.text('Please confirm availability and delivery with us on WhatsApp.', 20, y + 45)
-    pdf.save(`${orderId}-receipt.pdf`)
-  }
   async function submitOrder(e: React.FormEvent) {
     e.preventDefault()
     const itemCount = items.reduce((sum, item) => sum + item.quantity, 0)
@@ -122,8 +97,8 @@ function Checkout({ subtotal, items, onClose, onComplete }: { subtotal: number; 
     const result = await response.json()
     if (!response.ok) { setError(result.error || 'We could not record this order.'); return }
     const lines = items.map((item) => `- ${item.name} x${item.quantity} - ${money(item.price * item.quantity)}`).join('%0A')
-    const message = `NEW FOOD ORDER%0A%0AOrder reference: ${result.order.id}%0AName: ${encodeURIComponent(form.name)}%0APhone: ${encodeURIComponent(form.phone)}%0AArea: ${encodeURIComponent(form.area)}%0AAddress: ${encodeURIComponent(form.address)}%0A%0AORDER%0A${lines}%0A%0ASubtotal: ${money(subtotal)}%0ADelivery: ${money(delivery)}%0ATotal: ${money(subtotal + delivery)}%0A%0ANotes: ${encodeURIComponent(form.notes || 'None')}`
-    createReceipt(result.order.id, delivery, subtotal + delivery)
+    const receiptUrl = `${window.location.origin}/api/orders/${encodeURIComponent(result.order.id)}/receipt?token=${encodeURIComponent(result.receiptToken)}`
+    const message = `NEW FOOD ORDER%0A%0AOrder reference: ${result.order.id}%0AName: ${encodeURIComponent(form.name)}%0APhone: ${encodeURIComponent(form.phone)}%0AArea: ${encodeURIComponent(form.area)}%0AAddress: ${encodeURIComponent(form.address)}%0A%0AORDER%0A${lines}%0A%0ASubtotal: ${money(subtotal)}%0ADelivery: ${money(delivery)}%0ATotal: ${money(subtotal + delivery)}%0A%0ANotes: ${encodeURIComponent(form.notes || 'None')}%0A%0AReceipt: ${encodeURIComponent(receiptUrl)}%0ATap the receipt link to download your PDF.`
     onComplete()
     window.location.assign(`https://wa.me/233501242319?text=${message}`)
   }

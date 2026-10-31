@@ -64,5 +64,6 @@ export async function POST(request: Request) {
   }
   orderStore.unshift(order)
   try { await sendOrderNotification(order) } catch (error) { console.error('Order email notification failed', error) }
-  return NextResponse.json({ order }, { status: 201 })
+  const receiptToken = Buffer.from(JSON.stringify(order), 'utf8').toString('base64url')
+  return NextResponse.json({ order, receiptToken }, { status: 201 })
 }

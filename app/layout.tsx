@@ -3,6 +3,7 @@ import './globals.css'
 import './admin.css'
 import './storefront.css'
 import './admin-responsive.css'
+import './category-overrides.css'
 
 export const metadata: Metadata = {
   title: 'KFC — Chicken Man Plug',

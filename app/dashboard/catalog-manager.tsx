@@ -9,19 +9,24 @@ const emptySlide = { title: '', text: '', image: '' }
 const emptyRestaurant = { name: '', description: '' }
 const emptyCategory = { name: '', description: '', restaurant: 'Both' as Restaurant | 'Both', image: '', badge: '', active: true }
 
-function ImageField({ value, onChange, label = 'Image URL or local file' }: { value: string; onChange: (value: string) => void; label?: string }) {
+function ImageField({ value, onChange, label = 'Upload image' }: { value: string; onChange: (value: string) => void; label?: string }) {
+  const [localPreview, setLocalPreview] = useState('')
+  const [uploading, setUploading] = useState(false)
   function chooseFile(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0]
     if (!file) return
+    setLocalPreview(URL.createObjectURL(file))
+    setUploading(true)
     const formData = new FormData()
     formData.append('file', file)
     fetch('/api/uploads', { method: 'POST', body: formData }).then(async (response) => {
       const payload = await response.json()
       if (!response.ok) throw new Error(payload.error || 'Upload failed.')
       onChange(payload.url)
-    }).catch((error) => window.alert(error.message))
+      setLocalPreview('')
+    }).catch((error) => window.alert(error.message)).finally(() => setUploading(false))
   }
-  return <label className="manager-field">{label}<input value={value.startsWith('data:') ? '' : value} onChange={(event) => onChange(event.target.value)} placeholder="https://..." /><span className="upload-row"><input type="file" accept="image/*" onChange={chooseFile} /><small>or choose a local image</small></span>{value && <img className="manager-image-preview" src={value} alt="Selected preview" />}</label>
+  return <label className="manager-field">{label}<span className="upload-row"><input type="file" accept="image/jpeg,image/png,image/webp,image/gif" onChange={chooseFile} /><small>{uploading ? 'Uploading image…' : 'Choose a local image (max 4.5 MB)'}</small></span>{(localPreview || value) && <img className="manager-image-preview" src={localPreview || value} alt="Selected preview" />}</label>
 }
 
 export default function CatalogManager({ mode }: { mode: 'Products' | 'Categories' | 'Carousel media' | 'Restaurants' | 'Settings' }) {

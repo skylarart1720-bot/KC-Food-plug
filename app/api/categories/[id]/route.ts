@@ -1,8 +1,10 @@
 import { NextResponse } from 'next/server'
-import { categoryStore, persistCatalog } from '../../../../lib/catalog-store'
+import { del } from '@vercel/blob'
+import { categoryStore, hydrateCatalog, persistCatalog } from '../../../../lib/catalog-store'
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
+  await hydrateCatalog()
   const body = await request.json().catch(() => null)
   const category = categoryStore.find((item) => item.id === id)
   if (!category) return NextResponse.json({ error: 'Category not found.' }, { status: 404 })
@@ -14,15 +16,18 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   if (body?.badge !== undefined) category.badge = body.badge ? String(body.badge).trim() : undefined
   if (body?.active !== undefined) category.active = Boolean(body.active)
   if (!category.name) return NextResponse.json({ error: 'Category name is required.' }, { status: 400 })
-  persistCatalog()
+  await persistCatalog()
   return NextResponse.json({ category })
 }
 
 export async function DELETE(_: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
+  await hydrateCatalog()
   const index = categoryStore.findIndex((item) => item.id === id)
   if (index < 0) return NextResponse.json({ error: 'Category not found.' }, { status: 404 })
+  const category = categoryStore[index]
   categoryStore.splice(index, 1)
-  persistCatalog()
+  if (category.image.includes('.blob.vercel-storage.com/')) await del(category.image).catch(() => {})
+  await persistCatalog()
   return NextResponse.json({ ok: true })
 }

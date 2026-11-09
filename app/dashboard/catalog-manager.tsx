@@ -13,9 +13,13 @@ function ImageField({ value, onChange, label = 'Image URL or local file' }: { va
   function chooseFile(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0]
     if (!file) return
-    const reader = new FileReader()
-    reader.onload = () => onChange(String(reader.result))
-    reader.readAsDataURL(file)
+    const formData = new FormData()
+    formData.append('file', file)
+    fetch('/api/uploads', { method: 'POST', body: formData }).then(async (response) => {
+      const payload = await response.json()
+      if (!response.ok) throw new Error(payload.error || 'Upload failed.')
+      onChange(payload.url)
+    }).catch((error) => window.alert(error.message))
   }
   return <label className="manager-field">{label}<input value={value.startsWith('data:') ? '' : value} onChange={(event) => onChange(event.target.value)} placeholder="https://..." /><span className="upload-row"><input type="file" accept="image/*" onChange={chooseFile} /><small>or choose a local image</small></span>{value && <img className="manager-image-preview" src={value} alt="Selected preview" />}</label>
 }

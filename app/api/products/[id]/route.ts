@@ -1,8 +1,10 @@
 import { NextResponse } from 'next/server'
-import { productStore, persistCatalog } from '../../../../lib/catalog-store'
+import { del } from '@vercel/blob'
+import { productStore, hydrateCatalog, persistCatalog } from '../../../../lib/catalog-store'
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
+  await hydrateCatalog()
   const body = await request.json().catch(() => null)
   const product = productStore.find((item) => item.id === id)
   if (!product) return NextResponse.json({ error: 'Product not found.' }, { status: 404 })
@@ -16,15 +18,18 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   if (body?.active !== undefined) product.active = Boolean(body.active)
   if (body?.price !== undefined) product.price = Number(body.price) || 0
   if (!product.name || !product.image) return NextResponse.json({ error: 'Name and image are required.' }, { status: 400 })
-  persistCatalog()
+  await persistCatalog()
   return NextResponse.json({ product })
 }
 
 export async function DELETE(_: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
+  await hydrateCatalog()
   const index = productStore.findIndex((item) => item.id === id)
   if (index < 0) return NextResponse.json({ error: 'Product not found.' }, { status: 404 })
+  const product = productStore[index]
   productStore.splice(index, 1)
-  persistCatalog()
+  if (product.image.includes('.blob.vercel-storage.com/')) await del(product.image).catch(() => {})
+  await persistCatalog()
   return NextResponse.json({ ok: true })
 }

@@ -1,5 +1,6 @@
 import fs from 'node:fs'
 import path from 'node:path'
+import { get, put } from '@vercel/blob'
 
 export type Restaurant = 'KFC' | 'Chickenman'
 
@@ -71,7 +72,28 @@ export const catalog = globalCatalog.plugCatalog ?? (globalCatalog.plugCatalog =
 export const productStore = catalog.products
 export const categoryStore = catalog.categories
 export const carouselStore = catalog.carousel
-export function persistCatalog() {
+let hydrated = false
+export async function hydrateCatalog() {
+  if (hydrated || !process.env.BLOB_READ_WRITE_TOKEN) return
+  try {
+    const blob = await get('catalog.json', { access: 'public' })
+    if (blob) {
+      const saved = JSON.parse(await new Response(blob.stream).text()) as Partial<CatalogSnapshot>
+      if (Array.isArray(saved.products) && Array.isArray(saved.categories) && Array.isArray(saved.carousel)) {
+        catalog.products.splice(0, catalog.products.length, ...saved.products)
+        catalog.categories.splice(0, catalog.categories.length, ...saved.categories)
+        catalog.carousel.splice(0, catalog.carousel.length, ...saved.carousel)
+      }
+    }
+  } catch {}
+  hydrated = true
+}
+
+export async function persistCatalog() {
+  if (process.env.BLOB_READ_WRITE_TOKEN) {
+    await put('catalog.json', JSON.stringify(catalog), { access: 'public', addRandomSuffix: false, allowOverwrite: true, contentType: 'application/json' })
+    return
+  }
   fs.mkdirSync(path.dirname(filePath), { recursive: true })
   const temporaryPath = `${filePath}.tmp`
   fs.writeFileSync(temporaryPath, JSON.stringify(catalog, null, 2), 'utf8')

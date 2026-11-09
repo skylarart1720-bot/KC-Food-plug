@@ -11,6 +11,7 @@ export async function POST(request: Request) {
     const blob = await put(`images/${crypto.randomUUID()}.${extension}`, file, { access: 'public', addRandomSuffix: false, contentType: file.type })
     return NextResponse.json({ url: blob.url })
   } catch {
-    return NextResponse.json({ error: 'Blob storage is not available. Connect a Vercel Blob store to this project.' }, { status: 503 })
+    const bytes = Buffer.from(await file.arrayBuffer()).toString('base64')
+    return NextResponse.json({ url: `data:${file.type};base64,${bytes}`, persistent: false, warning: 'Blob storage is not configured; this image is embedded in the catalog.' })
   }
 }

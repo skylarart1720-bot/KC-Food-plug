@@ -17,6 +17,11 @@ function ImageField({ value, onChange, label = 'Upload image' }: { value: string
     if (!file) return
     setLocalPreview(URL.createObjectURL(file))
     setUploading(true)
+    const reader = new FileReader()
+    reader.onload = () => {
+      if (typeof reader.result === 'string') onChange(reader.result)
+    }
+    reader.readAsDataURL(file)
     const formData = new FormData()
     formData.append('file', file)
     fetch('/api/uploads', { method: 'POST', body: formData }).then(async (response) => {

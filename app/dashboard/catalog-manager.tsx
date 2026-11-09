@@ -9,7 +9,37 @@ const emptySlide = { title: '', text: '', image: '' }
 const emptyRestaurant = { name: '', description: '' }
 const emptyCategory = { name: '', description: '', restaurant: 'Both' as Restaurant | 'Both', image: '', badge: '', active: true }
 
-function ImageField({ value, onChange, label = 'Upload image' }: { value: string; onChange: (value: string) => void; label?: string }) {
+async function optimizeImage(file: File) {
+  const dataUrl = await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => typeof reader.result === 'string' ? resolve(reader.result) : reject(new Error('Could not read image.'))
+    reader.onerror = () => reject(new Error('Could not read image.'))
+    reader.readAsDataURL(file)
+  })
+  const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+    const preview = new Image()
+    preview.onload = () => resolve(preview)
+    preview.onerror = () => reject(new Error('Could not process image.'))
+    preview.src = dataUrl
+  })
+  const scale = Math.min(1, 1400 / Math.max(image.naturalWidth, image.naturalHeight))
+  const canvas = document.createElement('canvas')
+  canvas.width = Math.max(1, Math.round(image.naturalWidth * scale))
+  canvas.height = Math.max(1, Math.round(image.naturalHeight * scale))
+  canvas.getContext('2d')?.drawImage(image, 0, 0, canvas.width, canvas.height)
+  const optimized = await new Promise<Blob>((resolve, reject) => canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error('Could not optimize image.')), 'image/jpeg', 0.78))
+  const optimizedUrl = URL.createObjectURL(optimized)
+  const optimizedDataUrl = await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => typeof reader.result === 'string' ? resolve(reader.result) : reject(new Error('Could not prepare image.'))
+    reader.onerror = () => reject(new Error('Could not prepare image.'))
+    reader.readAsDataURL(optimized)
+  })
+  URL.revokeObjectURL(optimizedUrl)
+  return { file: new File([optimized], 'product-image.jpg', { type: 'image/jpeg' }), dataUrl: optimizedDataUrl }
+}
+
+function ImageField({ value, onChange, label = 'Upload image', onUploadingChange }: { value: string; onChange: (value: string) => void; label?: string; onUploadingChange?: (uploading: boolean) => void }) {
   const [localPreview, setLocalPreview] = useState('')
   const [uploading, setUploading] = useState(false)
   function chooseFile(event: ChangeEvent<HTMLInputElement>) {
@@ -17,18 +47,22 @@ function ImageField({ value, onChange, label = 'Upload image' }: { value: string
     if (!file) return
     setLocalPreview(URL.createObjectURL(file))
     setUploading(true)
+    onUploadingChange?.(true)
     const reader = new FileReader()
     reader.onload = () => {
       if (typeof reader.result === 'string') onChange(reader.result)
     }
     reader.readAsDataURL(file)
-    const formData = new FormData()
-    formData.append('file', file)
-    fetch('/api/uploads', { method: 'POST', body: formData }).then(async (response) => {
-      const payload = await response.json()
-      if (!response.ok) throw new Error(payload.error || 'Upload failed.')
-      setLocalPreview('')
-    }).catch((error) => window.alert(error.message)).finally(() => setUploading(false))
+    optimizeImage(file).then(({ file: optimizedFile, dataUrl }) => {
+      onChange(dataUrl)
+      const formData = new FormData()
+      formData.append('file', optimizedFile)
+      return fetch('/api/uploads', { method: 'POST', body: formData }).then(async (response) => {
+        const payload = await response.json()
+        if (!response.ok) throw new Error(payload.error || 'Upload failed.')
+        setLocalPreview('')
+      })
+    }).catch((error) => window.alert(error.message)).finally(() => { setUploading(false); onUploadingChange?.(false) })
   }
   return <label className="manager-field">{label}<span className="upload-row"><input type="file" accept="image/jpeg,image/png,image/webp,image/gif" onChange={chooseFile} /><small>{uploading ? 'Uploading image…' : 'Choose a local image (max 4.5 MB)'}</small></span>{(localPreview || value) && <img className="manager-image-preview" src={localPreview || value} alt="Selected preview" />}</label>
 }
@@ -44,6 +78,7 @@ export default function CatalogManager({ mode }: { mode: 'Products' | 'Categorie
   const [restaurant, setRestaurant] = useState(emptyRestaurant)
   const [category, setCategory] = useState(emptyCategory)
   const [editingProductId, setEditingProductId] = useState<string | null>(null)
+  const [productImageUploading, setProductImageUploading] = useState(false)
   const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null)
   const [message, setMessage] = useState('')
 
@@ -65,6 +100,7 @@ export default function CatalogManager({ mode }: { mode: 'Products' | 'Categorie
 
   async function saveProduct(event: FormEvent) {
     event.preventDefault()
+    if (productImageUploading) { setMessage('Please wait for the product image to finish processing.'); return }
     if (!product.image) { setMessage('Upload a product image from your device before saving.'); return }
     const editing = Boolean(editingProductId)
     const response = await fetch(editing ? `/api/products/${editingProductId}` : '/api/products', { method: editing ? 'PATCH' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...product, price: Number(product.price) }) })

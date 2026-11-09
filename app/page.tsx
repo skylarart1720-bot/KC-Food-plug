@@ -44,6 +44,18 @@ export default function Home() {
   }, [])
 
   useEffect(() => {
+    const refreshStorefront = () => {
+      if (document.visibilityState === 'hidden') return
+      fetch('/api/products', { cache: 'no-store' }).then((response) => response.ok ? response.json() : null).then((payload) => { if (Array.isArray(payload?.products)) setProducts(payload.products) }).catch(() => {})
+      fetch('/api/categories', { cache: 'no-store' }).then((response) => response.ok ? response.json() : null).then((payload) => { if (Array.isArray(payload?.categories)) setCategories(payload.categories.filter((category: Category) => category.active)) }).catch(() => {})
+    }
+    const timer = window.setInterval(refreshStorefront, 3000)
+    const handleVisibility = () => { if (document.visibilityState === 'visible') refreshStorefront() }
+    document.addEventListener('visibilitychange', handleVisibility)
+    return () => { window.clearInterval(timer); document.removeEventListener('visibilitychange', handleVisibility) }
+  }, [])
+
+  useEffect(() => {
     try {
       const savedCart = window.localStorage.getItem('kc-food-plug-cart')
       if (savedCart) setCart(JSON.parse(savedCart))

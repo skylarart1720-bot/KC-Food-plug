@@ -95,7 +95,12 @@ export default function CatalogManager({ mode }: { mode: 'Products' | 'Categorie
     else if (mode === 'Restaurants') setRestaurants((await (await fetch('/api/restaurants', { cache: 'no-store' })).json()).restaurants || [])
     else setSettings((await (await fetch('/api/settings', { cache: 'no-store' })).json()).settings || settings)
   }
-  useEffect(() => { refresh().catch(() => setMessage('Could not load content.')) }, [mode])
+  useEffect(() => {
+    refresh().catch(() => setMessage('Could not load content.'))
+    if (!['Products', 'Categories'].includes(mode)) return
+    const timer = window.setInterval(() => refresh().catch(() => {}), 3000)
+    return () => window.clearInterval(timer)
+  }, [mode])
   useEffect(() => { if (mode === 'Categories') { const form = document.querySelector('.category-manager-form'); form?.setAttribute('novalidate', 'true'); form?.querySelectorAll('textarea, input[type="file"]').forEach((field) => field.removeAttribute('required')) } }, [mode])
 
   async function saveProduct(event: FormEvent) {

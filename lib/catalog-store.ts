@@ -45,7 +45,7 @@ function cloneDefaults(): CatalogSnapshot { return { products: defaultProducts.m
 function loadCatalog(): CatalogSnapshot {
   try {
     const saved = JSON.parse(fs.readFileSync(filePath, 'utf8')) as Partial<CatalogSnapshot>
-    if (Array.isArray(saved.products) && Array.isArray(saved.categories) && Array.isArray(saved.carousel)) return saved as CatalogSnapshot
+    if (Array.isArray(saved.products) && Array.isArray(saved.categories) && Array.isArray(saved.carousel)) return { ...saved, products: saved.products.map((product) => ({ ...product, active: product.active !== false })) } as CatalogSnapshot
   } catch {}
   return cloneDefaults()
 }
@@ -62,7 +62,7 @@ export async function hydrateCatalog(force = false) {
     if (blob) {
       const saved = JSON.parse(await new Response(blob.stream).text()) as Partial<CatalogSnapshot>
       if (Array.isArray(saved.products) && Array.isArray(saved.categories) && Array.isArray(saved.carousel)) {
-        catalog.products.splice(0, catalog.products.length, ...saved.products)
+        catalog.products.splice(0, catalog.products.length, ...saved.products.map((product) => ({ ...product, active: product.active !== false })))
         catalog.categories.splice(0, catalog.categories.length, ...saved.categories)
         catalog.carousel.splice(0, catalog.carousel.length, ...saved.carousel)
       }

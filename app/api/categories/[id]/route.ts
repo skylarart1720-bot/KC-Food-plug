@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { categoryStore } from '../../../../lib/catalog-store'
+import { categoryStore, persistCatalog } from '../../../../lib/catalog-store'
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -14,6 +14,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   if (body?.badge !== undefined) category.badge = body.badge ? String(body.badge).trim() : undefined
   if (body?.active !== undefined) category.active = Boolean(body.active)
   if (!category.name) return NextResponse.json({ error: 'Category name is required.' }, { status: 400 })
+  persistCatalog()
   return NextResponse.json({ category })
 }
 
@@ -22,5 +23,6 @@ export async function DELETE(_: Request, { params }: { params: Promise<{ id: str
   const index = categoryStore.findIndex((item) => item.id === id)
   if (index < 0) return NextResponse.json({ error: 'Category not found.' }, { status: 404 })
   categoryStore.splice(index, 1)
+  persistCatalog()
   return NextResponse.json({ ok: true })
 }

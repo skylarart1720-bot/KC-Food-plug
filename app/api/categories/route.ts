@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { categoryStore, Category } from '../../../lib/catalog-store'
+import { categoryStore, Category, persistCatalog } from '../../../lib/catalog-store'
 
 export async function GET() {
   return NextResponse.json({ categories: categoryStore })
@@ -12,5 +12,6 @@ export async function POST(request: Request) {
   if (categoryStore.some((category) => category.id === id)) return NextResponse.json({ error: 'A category with that name already exists.' }, { status: 409 })
   const category: Category = { id, name: String(body.name).trim(), description: String(body.description || '').trim(), image: String(body.image || ''), restaurant: 'Both', badge: body.badge ? String(body.badge).trim() : undefined, active: body.active !== false }
   categoryStore.unshift(category)
+  persistCatalog()
   return NextResponse.json({ category }, { status: 201 })
 }

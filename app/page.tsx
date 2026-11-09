@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { defaultCarousel, defaultCategories, defaultProducts, CarouselSlide, Category, Product, Restaurant } from '../lib/catalog-store'
+import { defaultCarousel, defaultCategories, defaultProducts, CarouselSlide, Category, Product, Restaurant } from '../lib/catalog-defaults'
 
 const money = (value: number) => `GH₵ ${value.toFixed(2)}`
 const deliveryFee = (itemCount: number) => itemCount <= 0 ? 0 : itemCount === 1 ? 20 : itemCount === 2 ? 40 : itemCount === 3 ? 50 : itemCount * 20
@@ -19,7 +19,7 @@ export default function Home() {
   const [carouselIndex, setCarouselIndex] = useState(0)
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
   const [activeCategoryId, setActiveCategoryId] = useState<string | null>(null)
-  useEffect(() => { const timer = window.setInterval(() => setCarouselIndex((index) => (index + 1) % carouselSlides.length), 4500); return () => window.clearInterval(timer) }, [carouselSlides.length])
+  useEffect(() => { if (!carouselSlides.length) return; const timer = window.setInterval(() => setCarouselIndex((index) => (index + 1) % carouselSlides.length), 4500); return () => window.clearInterval(timer) }, [carouselSlides.length])
 
   const visibleProducts = useMemo(() => products.filter((product) => {
     const matchesRestaurant = product.active && (activeRestaurant === 'All' || product.restaurant === activeRestaurant)
@@ -32,11 +32,13 @@ export default function Home() {
   const count = cartItems.reduce((total, item) => total + item.quantity, 0)
   const subtotal = cartItems.reduce((total, item) => total + item.price * item.quantity, 0)
   const delivery = deliveryFee(count)
+  const currentSlide = carouselSlides[carouselIndex]
+  const safeSlideIndex = carouselSlides.length ? carouselIndex % carouselSlides.length : 0
 
   useEffect(() => {
-    fetch('/api/products', { cache: 'no-store' }).then((response) => response.ok ? response.json() : null).then((payload) => { if (payload?.products?.length) setProducts(payload.products) }).catch(() => {})
-    fetch('/api/categories', { cache: 'no-store' }).then((response) => response.ok ? response.json() : null).then((payload) => { if (payload?.categories?.length) setCategories(payload.categories.filter((category: Category) => category.active)) }).catch(() => {})
-    fetch('/api/carousel', { cache: 'no-store' }).then((response) => response.ok ? response.json() : null).then((payload) => { if (payload?.slides?.length) setCarouselSlides(payload.slides.filter((slide: CarouselSlide) => slide.active)) }).catch(() => {})
+    fetch('/api/products', { cache: 'no-store' }).then((response) => response.ok ? response.json() : null).then((payload) => { if (Array.isArray(payload?.products)) setProducts(payload.products) }).catch(() => {})
+    fetch('/api/categories', { cache: 'no-store' }).then((response) => response.ok ? response.json() : null).then((payload) => { if (Array.isArray(payload?.categories)) setCategories(payload.categories.filter((category: Category) => category.active)) }).catch(() => {})
+    fetch('/api/carousel', { cache: 'no-store' }).then((response) => response.ok ? response.json() : null).then((payload) => { if (Array.isArray(payload?.slides)) { const activeSlides = payload.slides.filter((slide: CarouselSlide) => slide.active); setCarouselSlides(activeSlides.length ? activeSlides : [{ id: 'empty-carousel', title: '', text: '', image: '', active: true }]) } }).catch(() => {})
   }, [])
 
   useEffect(() => {

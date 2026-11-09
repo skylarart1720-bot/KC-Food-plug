@@ -1,3 +1,6 @@
+import fs from 'node:fs'
+import path from 'node:path'
+
 export type Restaurant = 'KFC' | 'Chickenman'
 
 export type Product = {
@@ -53,7 +56,24 @@ export const defaultCarousel: CarouselSlide[] = [
   { id: 'share-good-stuff', title: 'Share the good stuff', text: 'Build one basket from both menus.', image: defaultProducts[5].image, active: true },
 ]
 
-const globalCatalog = globalThis as typeof globalThis & { plugProducts?: Product[]; plugCategories?: Category[]; plugCarousel?: CarouselSlide[] }
-export const productStore = globalCatalog.plugProducts ?? (globalCatalog.plugProducts = defaultProducts.map((product) => ({ ...product })))
-export const categoryStore = globalCatalog.plugCategories ?? (globalCatalog.plugCategories = defaultCategories.map((category) => ({ ...category })))
-export const carouselStore = globalCatalog.plugCarousel ?? (globalCatalog.plugCarousel = defaultCarousel.map((slide) => ({ ...slide })))
+type CatalogSnapshot = { products: Product[]; categories: Category[]; carousel: CarouselSlide[] }
+const filePath = path.join(process.cwd(), 'data', 'catalog.json')
+const globalCatalog = globalThis as typeof globalThis & { plugCatalog?: CatalogSnapshot }
+function cloneDefaults(): CatalogSnapshot { return { products: defaultProducts.map((item) => ({ ...item })), categories: defaultCategories.map((item) => ({ ...item })), carousel: defaultCarousel.map((item) => ({ ...item })) } }
+function loadCatalog(): CatalogSnapshot {
+  try {
+    const saved = JSON.parse(fs.readFileSync(filePath, 'utf8')) as Partial<CatalogSnapshot>
+    if (Array.isArray(saved.products) && Array.isArray(saved.categories) && Array.isArray(saved.carousel)) return saved as CatalogSnapshot
+  } catch {}
+  return cloneDefaults()
+}
+export const catalog = globalCatalog.plugCatalog ?? (globalCatalog.plugCatalog = loadCatalog())
+export const productStore = catalog.products
+export const categoryStore = catalog.categories
+export const carouselStore = catalog.carousel
+export function persistCatalog() {
+  fs.mkdirSync(path.dirname(filePath), { recursive: true })
+  const temporaryPath = `${filePath}.tmp`
+  fs.writeFileSync(temporaryPath, JSON.stringify(catalog, null, 2), 'utf8')
+  fs.renameSync(temporaryPath, filePath)
+}

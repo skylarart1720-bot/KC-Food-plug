@@ -1,33 +1,33 @@
 import { NextResponse } from 'next/server'
 import { del } from '@vercel/blob'
-import { categoryStore, hydrateCatalog, persistCatalog } from '../../../../lib/catalog-store'
+import { categoryStore, mutateCatalog } from '../../../../lib/catalog-store'
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  await hydrateCatalog()
   const body = await request.json().catch(() => null)
-  const category = categoryStore.find((item) => item.id === id)
-  if (!category) return NextResponse.json({ error: 'Category not found.' }, { status: 404 })
-  if (body?.restaurant !== undefined && !['KFC', 'Chickenman', 'Both'].includes(body.restaurant)) return NextResponse.json({ error: 'Restaurant must be KFC, Chickenman or Both.' }, { status: 400 })
-  if (body?.name !== undefined) category.name = String(body.name).trim()
-  if (body?.description !== undefined) category.description = String(body.description).trim()
-  if (body?.image !== undefined) category.image = String(body.image)
-  if (body?.restaurant !== undefined) category.restaurant = body.restaurant
-  if (body?.badge !== undefined) category.badge = body.badge ? String(body.badge).trim() : undefined
-  if (body?.active !== undefined) category.active = Boolean(body.active)
-  if (!category.name) return NextResponse.json({ error: 'Category name is required.' }, { status: 400 })
-  await persistCatalog()
-  return NextResponse.json({ category })
+  return mutateCatalog(() => {
+    const category = categoryStore.find((item) => item.id === id)
+    if (!category) return NextResponse.json({ error: 'Category not found.' }, { status: 404 })
+    if (body?.restaurant !== undefined && !['KFC', 'Chickenman', 'Both'].includes(body.restaurant)) return NextResponse.json({ error: 'Restaurant must be KFC, Chickenman or Both.' }, { status: 400 })
+    if (body?.name !== undefined) category.name = String(body.name).trim()
+    if (body?.description !== undefined) category.description = String(body.description).trim()
+    if (body?.image !== undefined) category.image = String(body.image)
+    if (body?.restaurant !== undefined) category.restaurant = body.restaurant
+    if (body?.badge !== undefined) category.badge = body.badge ? String(body.badge).trim() : undefined
+    if (body?.active !== undefined) category.active = Boolean(body.active)
+    if (!category.name) return NextResponse.json({ error: 'Category name is required.' }, { status: 400 })
+    return NextResponse.json({ category })
+  })
 }
 
 export async function DELETE(_: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  await hydrateCatalog()
-  const index = categoryStore.findIndex((item) => item.id === id)
-  if (index < 0) return NextResponse.json({ error: 'Category not found.' }, { status: 404 })
-  const category = categoryStore[index]
-  categoryStore.splice(index, 1)
-  if (category.image.includes('.blob.vercel-storage.com/')) await del(category.image).catch(() => {})
-  await persistCatalog()
-  return NextResponse.json({ ok: true })
+  return mutateCatalog(async () => {
+    const index = categoryStore.findIndex((item) => item.id === id)
+    if (index < 0) return NextResponse.json({ error: 'Category not found.' }, { status: 404 })
+    const category = categoryStore[index]
+    categoryStore.splice(index, 1)
+    if (category.image.includes('.blob.vercel-storage.com/')) await del(category.image).catch(() => {})
+    return NextResponse.json({ ok: true })
+  })
 }

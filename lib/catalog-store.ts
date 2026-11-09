@@ -54,8 +54,9 @@ export const productStore = catalog.products
 export const categoryStore = catalog.categories
 export const carouselStore = catalog.carousel
 let hydrated = false
-export async function hydrateCatalog() {
-  if (hydrated) return
+let mutationQueue = Promise.resolve()
+export async function hydrateCatalog(force = false) {
+  if (hydrated && !force) return
   try {
     const blob = await get('catalog.json', { access: 'public' })
     if (blob) {
@@ -68,6 +69,21 @@ export async function hydrateCatalog() {
     }
   } catch {}
   hydrated = true
+}
+
+export async function mutateCatalog<T>(mutator: () => Promise<T> | T): Promise<T> {
+  let release!: () => void
+  const previous = mutationQueue
+  mutationQueue = new Promise<void>((resolve) => { release = resolve })
+  await previous
+  try {
+    await hydrateCatalog(true)
+    const result = await mutator()
+    await persistCatalog()
+    return result
+  } finally {
+    release()
+  }
 }
 
 export async function persistCatalog() {

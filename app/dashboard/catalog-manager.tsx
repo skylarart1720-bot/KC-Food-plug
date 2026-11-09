@@ -61,9 +61,11 @@ export default function CatalogManager({ mode }: { mode: 'Products' | 'Categorie
 
   async function saveProduct(event: FormEvent) {
     event.preventDefault()
+    if (!product.image) { setMessage('Upload a product image from your device before saving.'); return }
     const editing = Boolean(editingProductId)
     const response = await fetch(editing ? `/api/products/${editingProductId}` : '/api/products', { method: editing ? 'PATCH' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...product, price: Number(product.price) }) })
-    setMessage(response.ok ? (editing ? 'Product updated on the storefront.' : 'Product added to the storefront.') : 'Product could not be saved.')
+    const result = await response.json().catch(() => null)
+    setMessage(response.ok ? (editing ? 'Product updated on the storefront.' : 'Product added to the storefront.') : (result?.error || 'Product could not be saved.'))
     if (response.ok) { resetProductForm(); refresh() }
   }
 

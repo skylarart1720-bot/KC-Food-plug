@@ -5,12 +5,13 @@ import { defaultCarousel, defaultCategories, defaultProducts, CarouselSlide, Cat
 
 const money = (value: number) => `GH₵ ${value.toFixed(2)}`
 const deliveryFee = (itemCount: number) => itemCount <= 0 ? 0 : itemCount === 1 ? 20 : itemCount === 2 ? 40 : itemCount === 3 ? 50 : itemCount * 20
+const emptyCarouselSlide: CarouselSlide = { id: 'empty-carousel', title: '', text: '', image: '', active: true }
 
 export default function Home() {
   const [activeRestaurant, setActiveRestaurant] = useState<'All' | Restaurant>('All')
   const [products, setProducts] = useState<Product[]>(defaultProducts)
   const [categories, setCategories] = useState<Category[]>(defaultCategories)
-  const [carouselSlides, setCarouselSlides] = useState<CarouselSlide[]>(defaultCarousel)
+  const [carouselSlides, setCarouselSlides] = useState<CarouselSlide[]>(defaultCarousel.length ? defaultCarousel : [emptyCarouselSlide])
   const [cart, setCart] = useState<Record<string, number>>({})
   const [cartReady, setCartReady] = useState(false)
   const [showCart, setShowCart] = useState(false)
@@ -34,6 +35,7 @@ export default function Home() {
   const delivery = deliveryFee(count)
   const currentSlide = carouselSlides[carouselIndex]
   const safeSlideIndex = carouselSlides.length ? carouselIndex % carouselSlides.length : 0
+  const renderedSlide = carouselSlides[safeSlideIndex]
 
   useEffect(() => {
     fetch('/api/products', { cache: 'no-store' }).then((response) => response.ok ? response.json() : null).then((payload) => { if (Array.isArray(payload?.products)) setProducts(payload.products) }).catch(() => {})

@@ -55,7 +55,7 @@ export const categoryStore = catalog.categories
 export const carouselStore = catalog.carousel
 let hydrated = false
 export async function hydrateCatalog() {
-  if (hydrated || !process.env.BLOB_READ_WRITE_TOKEN) return
+  if (hydrated) return
   try {
     const blob = await get('catalog.json', { access: 'public' })
     if (blob) {
@@ -71,10 +71,10 @@ export async function hydrateCatalog() {
 }
 
 export async function persistCatalog() {
-  if (process.env.BLOB_READ_WRITE_TOKEN) {
+  try {
     await put('catalog.json', JSON.stringify(catalog), { access: 'public', addRandomSuffix: false, allowOverwrite: true, contentType: 'application/json' })
     return
-  }
+  } catch {}
   fs.mkdirSync(path.dirname(filePath), { recursive: true })
   const temporaryPath = `${filePath}.tmp`
   fs.writeFileSync(temporaryPath, JSON.stringify(catalog, null, 2), 'utf8')

@@ -48,19 +48,13 @@ function ImageField({ value, onChange, label = 'Upload image', onUploadingChange
     setLocalPreview(URL.createObjectURL(file))
     setUploading(true)
     onUploadingChange?.(true)
-    const reader = new FileReader()
-    reader.onload = () => {
-      if (typeof reader.result === 'string') onChange(reader.result)
-    }
-    reader.readAsDataURL(file)
-    optimizeImage(file).then(({ file: optimizedFile, dataUrl }) => {
-      onChange(dataUrl)
+    optimizeImage(file).then(({ file: optimizedFile }) => {
       const formData = new FormData()
       formData.append('file', optimizedFile)
       return fetch('/api/uploads', { method: 'POST', body: formData }).then(async (response) => {
         const payload = await response.json()
         if (!response.ok) throw new Error(payload.error || 'Upload failed.')
-        if (typeof payload.url === 'string' && payload.url.startsWith('http') && payload.persistent !== false) onChange(payload.url)
+        if (typeof payload.url === 'string' && payload.url) onChange(payload.url)
         setLocalPreview('')
       })
     }).catch((error) => window.alert(error.message)).finally(() => { setUploading(false); onUploadingChange?.(false) })

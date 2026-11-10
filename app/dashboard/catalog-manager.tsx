@@ -144,15 +144,16 @@ export default function CatalogManager({ mode }: { mode: 'Products' | 'Categorie
     const response = await fetch(editing ? `/api/products/${editingProductId}` : '/api/products', { method: editing ? 'PATCH' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...product, price: Number(product.price) }) })
     const result = await response.json().catch(() => null)
     setMessage(response.ok ? (editing ? 'Product updated on the storefront.' : 'Product added to the storefront.') : (result?.error || 'Product could not be saved.'))
-    if (response.ok) { resetProductForm(); refresh() }
+if (response.ok && result?.product) { setProducts((items) => editing ? items.map((item) => item.id === result.product.id ? result.product : item) : [result.product, ...items]); resetProductForm(); refresh() }
   }
 
-  async function saveCategory(event: FormEvent) {
+async function saveCategory(event: FormEvent) {
     event.preventDefault()
     const editing = Boolean(editingCategoryId)
-    const response = await fetch(editing ? `/api/categories/${editingCategoryId}` : '/api/categories', { method: editing ? 'PATCH' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(category) })
-    setMessage(response.ok ? (editing ? 'Category updated.' : 'Category created.') : 'Category could not be saved.')
-    if (response.ok) { resetCategoryForm(); refresh() }
+const response = await fetch(editing ? `/api/categories/${editingCategoryId}` : '/api/categories', { method: editing ? 'PATCH' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(category) })
+const result = await response.json().catch(() => null)
+setMessage(response.ok ? (editing ? 'Category updated.' : 'Category created.') : (result?.error || 'Category could not be saved.'))
+if (response.ok && result?.category) { setCategories((items) => editing ? items.map((item) => item.id === result.category.id ? result.category : item) : [result.category, ...items]); resetCategoryForm(); refresh() }
   }
 
   async function addSlide(event: FormEvent) {

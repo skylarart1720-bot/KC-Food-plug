@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { orderStore, StoredOrder } from '../../../lib/order-store'
-import { productStore } from '../../../lib/catalog-store'
+import { productStore, hydrateCatalog } from '../../../lib/catalog-store'
 
 const clean = (value: unknown, max: number) => String(value || '').trim().slice(0, max)
 const deliveryFee = (itemCount: number) => itemCount <= 0 ? 0 : itemCount === 1 ? 20 : itemCount === 2 ? 40 : itemCount === 3 ? 50 : itemCount * 20
@@ -29,6 +29,7 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  await hydrateCatalog()
   const body = await request.json().catch(() => null)
   if (!Array.isArray(body?.items) || !body.items.length || body.items.length > 50) {
     return NextResponse.json({ error: 'At least one item is required.' }, { status: 400 })
@@ -63,7 +64,7 @@ export async function POST(request: Request) {
     createdAt: new Date().toISOString(),
   }
   orderStore.unshift(order)
-  try { await sendOrderNotification(order) } catch (error) { console.error('Order email notification failed', error) }
+  void sendOrderNotification(order).catch((error) => console.error('Order email notification failed', error))
   const receiptToken = Buffer.from(JSON.stringify(order), 'utf8').toString('base64url')
   return NextResponse.json({ order, receiptToken }, { status: 201 })
 }

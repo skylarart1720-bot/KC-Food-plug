@@ -68,7 +68,8 @@ export default function Home() {
   }, [cart, cartReady])
 
   function add(product: Product) { setCart((current) => ({ ...current, [product.id]: (current[product.id] || 0) + 1 })) }
-  function selectRestaurant(restaurant: 'All' | Restaurant) { setActiveRestaurant(restaurant); setActiveCategoryId(null); document.getElementById('menu')?.scrollIntoView({ behavior: 'smooth' }) }
+  function scrollToMenu() { const menu = document.getElementById('menu'); if (menu) window.scrollTo({ top: Math.max(0, menu.getBoundingClientRect().top + window.scrollY - 140), behavior: 'smooth' }) }
+  function selectRestaurant(restaurant: 'All' | Restaurant) { setActiveRestaurant(restaurant); setActiveCategoryId(null); scrollToMenu() }
   function change(id: string, amount: number) { setCart((current) => { const next = Math.max(0, (current[id] || 0) + amount); const copy = { ...current }; if (next) copy[id] = next; else delete copy[id]; return copy }) }
 
   return <main>
@@ -105,18 +106,18 @@ export default function Home() {
 function Checkout({ subtotal, items, onClose, onComplete }: { subtotal: number; items: Array<Product & { quantity: number }>; onClose: () => void; onComplete: () => void }) {
   const [form, setForm] = useState({ name: '', phone: '', area: '', address: '', notes: '' })
   const [error, setError] = useState('')
-  async function submitOrder(e: React.FormEvent) {
+  function submitOrder(e: React.FormEvent) {
     e.preventDefault()
+    const reference = `PLUG-${Math.random().toString(36).slice(2, 8).toUpperCase()}`
     const itemCount = items.reduce((sum, item) => sum + item.quantity, 0)
     const delivery = itemCount === 1 ? 20 : itemCount === 2 ? 40 : itemCount === 3 ? 50 : itemCount * 20
-    const response = await fetch('/api/orders', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ customer: form, items: items.map((item) => ({ id: item.id, name: item.name, restaurant: item.restaurant, quantity: item.quantity, price: item.price })), subtotal, delivery, total: subtotal + delivery }) })
-    const result = await response.json()
-    if (!response.ok) { setError(result.error || 'We could not record this order.'); return }
-    const lines = items.map((item) => `- ${item.name} x${item.quantity} - ${money(item.price * item.quantity)}`).join('%0A')
-    const receiptUrl = `${window.location.origin}/api/orders/${encodeURIComponent(result.order.id)}/receipt?token=${encodeURIComponent(result.receiptToken)}`
-    const message = `NEW FOOD ORDER%0A%0AOrder reference: ${result.order.id}%0AName: ${encodeURIComponent(form.name)}%0APhone: ${encodeURIComponent(form.phone)}%0AArea: ${encodeURIComponent(form.area)}%0AAddress: ${encodeURIComponent(form.address)}%0A%0AORDER%0A${lines}%0A%0ASubtotal: ${money(subtotal)}%0ADelivery: ${money(delivery)}%0ATotal: ${money(subtotal + delivery)}%0A%0ANotes: ${encodeURIComponent(form.notes || 'None')}%0A%0AReceipt: ${encodeURIComponent(receiptUrl)}%0ATap the receipt link to download your PDF.`
+    const orderPayload = { customer: form, items: items.map((item) => ({ id: item.id, name: item.name, restaurant: item.restaurant, quantity: item.quantity, price: item.price })), subtotal, delivery, total: subtotal + delivery }
+    const orderBody = new Blob([JSON.stringify(orderPayload)], { type: 'application/json' })
+    if (!navigator.sendBeacon('/api/orders', orderBody)) fetch('/api/orders', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(orderPayload), keepalive: true }).catch(() => {})
+    const lines = items.map((item) => `- ${item.name} x${item.quantity} - ${money(item.price * item.quantity)}`).join('\n')
+    const message = ['NEW FOOD ORDER', '', `Order reference: ${reference}`, `Name: ${form.name}`, `Phone: ${form.phone}`, `Area: ${form.area}`, `Address: ${form.address}`, '', 'ORDER', lines, '', `Subtotal: ${money(subtotal)}`, `Delivery: ${money(delivery)}`, `Total: ${money(subtotal + delivery)}`, '', `Notes: ${form.notes || 'None'}`].join('\n')
     onComplete()
-    window.location.assign(`https://wa.me/233501242319?text=${message}`)
+    window.location.assign(`https://api.whatsapp.com/send?phone=233501242319&text=${encodeURIComponent(message)}`)
   }
   function submit(e: React.FormEvent) { e.preventDefault(); if (!form.name || !form.phone || !form.area || !form.address) { setError('Please fill in your name, phone, area and address.'); return } const reference = `PLUG-${Math.random().toString(36).slice(2, 8).toUpperCase()}`; const lines = items.map((item) => `• ${item.name} x${item.quantity} — ${money(item.price * item.quantity)}`).join('%0A'); const message = `🍗 NEW FOOD ORDER%0A%0AOrder reference: ${reference}%0AName: ${encodeURIComponent(form.name)}%0APhone: ${encodeURIComponent(form.phone)}%0AArea: ${encodeURIComponent(form.area)}%0AAddress: ${encodeURIComponent(form.address)}%0A%0AORDER%0A${lines}%0A%0ASubtotal: ${money(subtotal)}%0ADelivery: To be confirmed%0A%0ANotes: ${encodeURIComponent(form.notes || 'None')}%0A%0APlease confirm availability and final delivery charge.`; window.open(`https://wa.me/233501242319?text=${message}`, '_blank'); }
   return <div className="overlay"><div className="checkout"><button className="close" onClick={onClose}>×</button><p className="eyebrow">ALMOST THERE</p><h2>Send your order<br /><i>on WhatsApp.</i></h2><p className="checkout-note">We’ll confirm availability and the final delivery fee with you.</p><form onSubmit={submitOrder}><label>Full name<input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="e.g. Ama Mensah" /></label><label>Phone number<input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="e.g. 024 000 0000" /></label><label>Delivery area<input value={form.area} onChange={(e) => setForm({ ...form, area: e.target.value })} placeholder="e.g. East Legon" /></label><label>Address or landmark<input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} placeholder="Where should we meet you?" /></label><label>Anything else? <span>(optional)</span><textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} placeholder="Extra sauce, call on arrival..." /></label>{error && <p className="form-error">{error}</p>}<button className="button primary full" type="submit">Open WhatsApp <span>↗</span></button><small className="send-note">Your order is not confirmed until you press Send in WhatsApp.</small></form></div></div>

@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server'
 import { productStore, Product, hydrateCatalog, mutateCatalog } from '../../../lib/catalog-store'
 
 export async function GET() {
-  await hydrateCatalog()
+  const ready = await hydrateCatalog()
+  if (!ready && productStore.length === 0) return NextResponse.json({ error: 'Catalog storage is temporarily unavailable.' }, { status: 503 })
   return NextResponse.json({ products: productStore })
 }
 

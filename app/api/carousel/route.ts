@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { carouselStore, CarouselSlide, hydrateCatalog, mutateCatalog } from '../../../lib/catalog-store'
 
-export async function GET() { await hydrateCatalog(); return NextResponse.json({ slides: carouselStore }) }
+export async function GET() { const ready = await hydrateCatalog(); if (!ready && carouselStore.length === 0) return NextResponse.json({ error: 'Catalog storage is temporarily unavailable.' }, { status: 503 }); return NextResponse.json({ slides: carouselStore }) }
 
 export async function POST(request: Request) {
   const body = await request.json().catch(() => null)

@@ -54,9 +54,10 @@ export const productStore = catalog.products
 export const categoryStore = catalog.categories
 export const carouselStore = catalog.carousel
 let hydrated = false
+let storageReady = false
 let mutationQueue = Promise.resolve()
 export async function hydrateCatalog(force = false) {
-  if (hydrated && !force) return
+  if (hydrated && !force) return storageReady
   try {
     const blob = await get('catalog.json', { access: 'public' })
     if (blob) {
@@ -67,8 +68,12 @@ export async function hydrateCatalog(force = false) {
         catalog.carousel.splice(0, catalog.carousel.length, ...saved.carousel)
       }
     }
-  } catch {}
-  hydrated = true
+    storageReady = true
+    hydrated = true
+    return true
+  } catch {
+    return false
+  }
 }
 
 export async function mutateCatalog<T>(mutator: () => Promise<T> | T): Promise<T> {
@@ -77,7 +82,8 @@ export async function mutateCatalog<T>(mutator: () => Promise<T> | T): Promise<T
   mutationQueue = new Promise<void>((resolve) => { release = resolve })
   await previous
   try {
-    await hydrateCatalog(true)
+    const loaded = await hydrateCatalog(true)
+    if (!loaded && !fs.existsSync(filePath)) throw new Error('Catalog storage is temporarily unavailable. Existing catalog was protected.')
     const result = await mutator()
     await persistCatalog()
     return result

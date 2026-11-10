@@ -1,6 +1,6 @@
 'use client'
 
-import { ChangeEvent, FormEvent, useEffect, useState } from 'react'
+import { ChangeEvent, FormEvent, useEffect, useRef, useState } from 'react'
 import type { Category, CarouselSlide, Product, Restaurant } from '../../lib/catalog-store'
 import type { AdminSettings, RestaurantRecord } from '../../lib/admin-store'
 
@@ -81,6 +81,7 @@ export default function CatalogManager({ mode }: { mode: 'Products' | 'Categorie
   const [productImageUploading, setProductImageUploading] = useState(false)
   const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null)
   const [message, setMessage] = useState('')
+  const refreshing = useRef(false)
 
   function resetProductForm() { setProduct({ ...emptyProduct }); setEditingProductId(null) }
   function resetCategoryForm() { setCategory({ ...emptyCategory }); setEditingCategoryId(null) }
@@ -88,15 +89,46 @@ export default function CatalogManager({ mode }: { mode: 'Products' | 'Categorie
     if (mode === 'Products') setCategories((items) => items.map((item) => ({ ...item, restaurant: 'Both' as const })))
   }, [mode])
 
+  async function readJson(path: string) {
+    let lastError: unknown
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      try {
+        const response = await fetch(path, { cache: 'no-store' })
+        if (!response.ok) throw new Error(`Request failed: ${response.status}`)
+        return await response.json()
+      } catch (error) {
+        lastError = error
+        await new Promise((resolve) => window.setTimeout(resolve, 250 * (attempt + 1)))
+      }
+    }
+    throw lastError || new Error('Request failed')
+  }
+
   async function refresh() {
-    if (mode === 'Products') { const [productsResponse, categoriesResponse] = await Promise.all([fetch('/api/products', { cache: 'no-store' }), fetch('/api/categories', { cache: 'no-store' })]); setProducts((await productsResponse.json()).products || []); setCategories((await categoriesResponse.json()).categories || []) }
-    else if (mode === 'Categories') { const [categoriesResponse, productsResponse] = await Promise.all([fetch('/api/categories', { cache: 'no-store' }), fetch('/api/products', { cache: 'no-store' })]); setCategories((await categoriesResponse.json()).categories || []); setProducts((await productsResponse.json()).products || []) }
-    else if (mode === 'Carousel media') setSlides((await (await fetch('/api/carousel', { cache: 'no-store' })).json()).slides || [])
-    else if (mode === 'Restaurants') setRestaurants((await (await fetch('/api/restaurants', { cache: 'no-store' })).json()).restaurants || [])
-    else setSettings((await (await fetch('/api/settings', { cache: 'no-store' })).json()).settings || settings)
+    if (refreshing.current) return
+    refreshing.current = true
+    try {
+      if (mode === 'Products' || mode === 'Categories') {
+        const [productsResult, categoriesResult] = await Promise.allSettled([readJson('/api/products'), readJson('/api/categories')])
+        if (productsResult.status === 'fulfilled' && Array.isArray(productsResult.value.products)) setProducts(productsResult.value.products)
+        if (categoriesResult.status === 'fulfilled' && Array.isArray(categoriesResult.value.categories)) setCategories(categoriesResult.value.categories)
+        if (productsResult.status === 'rejected' && categoriesResult.status === 'rejected') throw productsResult.reason
+      } else if (mode === 'Carousel media') {
+        const payload = await readJson('/api/carousel')
+        if (Array.isArray(payload.slides)) setSlides(payload.slides)
+      } else if (mode === 'Restaurants') {
+        const payload = await readJson('/api/restaurants')
+        if (Array.isArray(payload.restaurants)) setRestaurants(payload.restaurants)
+      } else {
+        const payload = await readJson('/api/settings')
+        if (payload.settings) setSettings(payload.settings)
+      }
+    } finally {
+      refreshing.current = false
+    }
   }
   useEffect(() => {
-    refresh().catch(() => setMessage('Could not load content.'))
+    refresh().catch(() => {})
     if (!['Products', 'Categories'].includes(mode)) return
     const timer = window.setInterval(() => refresh().catch(() => {}), 3000)
     return () => window.clearInterval(timer)

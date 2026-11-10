@@ -94,6 +94,7 @@ export async function mutateCatalog<T>(mutator: () => Promise<T> | T): Promise<T
 
 export async function persistCatalog() {
   try {
+    await externalizeDataImages()
     await put('catalog.json', JSON.stringify(catalog), { access: 'public', addRandomSuffix: false, allowOverwrite: true, contentType: 'application/json' })
     return
   } catch {}
@@ -101,4 +102,20 @@ export async function persistCatalog() {
   const temporaryPath = `${filePath}.tmp`
   fs.writeFileSync(temporaryPath, JSON.stringify(catalog, null, 2), 'utf8')
   fs.renameSync(temporaryPath, filePath)
+}
+
+async function externalizeDataImages() {
+  if (!process.env.BLOB_READ_WRITE_TOKEN) return
+  const imageEntries = [
+    ...catalog.products.map((item) => ({ item, name: 'product' })),
+    ...catalog.categories.map((item) => ({ item, name: 'category' })),
+    ...catalog.carousel.map((item) => ({ item, name: 'carousel' })),
+  ]
+  for (const { item, name } of imageEntries) {
+    if (!item.image.startsWith('data:')) continue
+    const match = item.image.match(/^data:([^;]+);base64,(.+)$/)
+    if (!match) continue
+    const blob = await put(`images/${name}-${crypto.randomUUID()}`, Buffer.from(match[2], 'base64'), { access: 'public', addRandomSuffix: false, contentType: match[1] })
+    item.image = blob.url
+  }
 }

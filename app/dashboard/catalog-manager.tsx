@@ -60,6 +60,7 @@ function ImageField({ value, onChange, label = 'Upload image', onUploadingChange
       return fetch('/api/uploads', { method: 'POST', body: formData }).then(async (response) => {
         const payload = await response.json()
         if (!response.ok) throw new Error(payload.error || 'Upload failed.')
+        if (typeof payload.url === 'string' && payload.url.startsWith('http') && payload.persistent !== false) onChange(payload.url)
         setLocalPreview('')
       })
     }).catch((error) => window.alert(error.message)).finally(() => { setUploading(false); onUploadingChange?.(false) })

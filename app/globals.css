@@ -12,3 +12,4 @@
 /* Storefront imagery is supplied through the dashboard upload flow. */
 .hero-art { background-image: none !important; }
 .food-carousel { display: none !important; }
+@media(max-width:600px){.nav-inner{padding-left:14px;padding-right:14px;gap:8px}.brand{gap:6px}.brand strong{font-size:16px}.brand em{font-size:8px}.brand small{font-size:6px}.cart-button{padding:9px 11px;font-size:10px}.hero{padding-top:110px!important}.category-navigation{padding-top:56px!important;padding-bottom:28px!important}.category-heading{padding:0 2px;margin-bottom:18px}.category-heading>div{min-width:0;padding-bottom:6px}.category-heading .eyebrow{margin-bottom:12px;line-height:1.4}.category-heading h2{line-height:1.02;letter-spacing:-.04em}.category-reset{margin-top:14px;padding:0 10px;white-space:nowrap;font-size:9px}.category-grid{margin-top:0!important}}

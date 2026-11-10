@@ -57,50 +57,66 @@ let hydrated = false
 let storageReady = false
 let mutationQueue = Promise.resolve()
 let entityStorageInitialized = false
+let hydrationPromise: Promise<boolean> | null = null
+let lastHydratedAt = 0
 
-async function readEntityCollection<T>(prefix: string): Promise<T[] | null> {
+const catalogCacheDuration = 1_000
+
+async function readEntityCollection<T>(prefix: string): Promise<T[]> {
   const result = await list({ prefix })
-  if (!result.blobs.length) return null
+  if (!result.blobs.length) return []
   return Promise.all(result.blobs.map(async (blob) => JSON.parse(await (await fetch(blob.url, { cache: 'no-store' })).text()) as T))
 }
 
 async function persistEntityCollection<T extends { id: string }>(prefix: string, before: T[], after: T[], writeAll: boolean) {
   const previous = new Map(before.map((item) => [item.id, JSON.stringify(item)]))
   const current = new Map(after.map((item) => [item.id, JSON.stringify(item)]))
-  const existing = await list({ prefix })
   await Promise.all(after.filter((item) => writeAll || previous.get(item.id) !== current.get(item.id)).map((item) => put(`${prefix}/${item.id}.json`, JSON.stringify(item), { access: 'public', addRandomSuffix: false, allowOverwrite: true, contentType: 'application/json' })))
-  if (!writeAll) await Promise.all(existing.blobs.filter((blob) => !current.has(blob.pathname.split('/').pop()?.replace(/\.json$/, '') || '')).map((blob) => deleteBlob(blob.url)))
+  if (!writeAll) {
+    await Promise.all(before.filter((item) => !current.has(item.id)).map((item) => deleteBlob(`${prefix}/${item.id}.json`)))
+  }
 }
 
 export async function hydrateCatalog(force = false) {
-  if (hydrated && !force) return storageReady
-  try {
-    const [products, categories, carousel] = await Promise.all([
-      readEntityCollection<Product>('catalog/products'),
-      readEntityCollection<Category>('catalog/categories'),
-      readEntityCollection<CarouselSlide>('catalog/carousel'),
-    ])
-    if (products || categories || carousel) {
-      entityStorageInitialized = true
-      if (products) catalog.products.splice(0, catalog.products.length, ...products.map((product) => ({ ...product, active: product.active !== false })))
-      if (categories) catalog.categories.splice(0, catalog.categories.length, ...categories)
-      if (carousel) catalog.carousel.splice(0, catalog.carousel.length, ...carousel)
-    } else {
-      const blob = await get('catalog.json', { access: 'public' })
-      if (blob) {
-        const saved = JSON.parse(await new Response(blob.stream).text()) as Partial<CatalogSnapshot>
-        if (Array.isArray(saved.products) && Array.isArray(saved.categories) && Array.isArray(saved.carousel)) {
-          catalog.products.splice(0, catalog.products.length, ...saved.products.map((product) => ({ ...product, active: product.active !== false })))
-          catalog.categories.splice(0, catalog.categories.length, ...saved.categories)
-          catalog.carousel.splice(0, catalog.carousel.length, ...saved.carousel)
+  if (!force && hydrated && Date.now() - lastHydratedAt < catalogCacheDuration) return storageReady
+  if (hydrationPromise) return hydrationPromise
+
+  const pendingHydration = (async () => {
+    try {
+      const [products, categories, carousel] = await Promise.all([
+        readEntityCollection<Product>('catalog/products'),
+        readEntityCollection<Category>('catalog/categories'),
+        readEntityCollection<CarouselSlide>('catalog/carousel'),
+      ])
+      if (products.length || categories.length || carousel.length || entityStorageInitialized) {
+        entityStorageInitialized = true
+        catalog.products.splice(0, catalog.products.length, ...products.map((product) => ({ ...product, active: product.active !== false })))
+        catalog.categories.splice(0, catalog.categories.length, ...categories)
+        catalog.carousel.splice(0, catalog.carousel.length, ...carousel)
+      } else {
+        const blob = await get('catalog.json', { access: 'public' })
+        if (blob) {
+          const saved = JSON.parse(await new Response(blob.stream).text()) as Partial<CatalogSnapshot>
+          if (Array.isArray(saved.products) && Array.isArray(saved.categories) && Array.isArray(saved.carousel)) {
+            catalog.products.splice(0, catalog.products.length, ...saved.products.map((product) => ({ ...product, active: product.active !== false })))
+            catalog.categories.splice(0, catalog.categories.length, ...saved.categories)
+            catalog.carousel.splice(0, catalog.carousel.length, ...saved.carousel)
+          }
         }
       }
+      storageReady = true
+      hydrated = true
+      lastHydratedAt = Date.now()
+      return true
+    } catch {
+      return false
     }
-    storageReady = true
-    hydrated = true
-    return true
-  } catch {
-    return false
+  })()
+  hydrationPromise = pendingHydration
+  try {
+    return await pendingHydration
+  } finally {
+    if (hydrationPromise === pendingHydration) hydrationPromise = null
   }
 }
 

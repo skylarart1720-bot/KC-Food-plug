@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { defaultCarousel, defaultCategories, defaultProducts, CarouselSlide, Category, Product, Restaurant } from '../lib/catalog-defaults'
 
 const money = (value: number) => `GH₵ ${value.toFixed(2)}`
@@ -20,6 +20,7 @@ export default function Home() {
   const [carouselIndex, setCarouselIndex] = useState(0)
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
   const [activeCategoryId, setActiveCategoryId] = useState<string | null>(null)
+  const storefrontRefreshInProgress = useRef(false)
   useEffect(() => { if (!carouselSlides.length) return; const timer = window.setInterval(() => setCarouselIndex((index) => (index + 1) % carouselSlides.length), 4500); return () => window.clearInterval(timer) }, [carouselSlides.length])
 
   const visibleProducts = useMemo(() => products.filter((product) => {
@@ -38,21 +39,37 @@ export default function Home() {
   const renderedSlide = carouselSlides[safeSlideIndex]
 
   useEffect(() => {
-    fetch('/api/products', { cache: 'no-store' }).then((response) => response.ok ? response.json() : null).then((payload) => { if (Array.isArray(payload?.products)) setProducts(payload.products) }).catch(() => {})
-    fetch('/api/categories', { cache: 'no-store' }).then((response) => response.ok ? response.json() : null).then((payload) => { if (Array.isArray(payload?.categories)) setCategories(payload.categories.filter((category: Category) => category.active)) }).catch(() => {})
     fetch('/api/carousel', { cache: 'no-store' }).then((response) => response.ok ? response.json() : null).then((payload) => { if (Array.isArray(payload?.slides)) { const activeSlides = payload.slides.filter((slide: CarouselSlide) => slide.active); setCarouselSlides(activeSlides.length ? activeSlides : [{ id: 'empty-carousel', title: '', text: '', image: '', active: true }]) } }).catch(() => {})
   }, [])
 
   useEffect(() => {
-    const refreshStorefront = () => {
-      if (document.visibilityState === 'hidden') return
-      fetch('/api/products', { cache: 'no-store' }).then((response) => response.ok ? response.json() : null).then((payload) => { if (Array.isArray(payload?.products)) setProducts(payload.products) }).catch(() => {})
-      fetch('/api/categories', { cache: 'no-store' }).then((response) => response.ok ? response.json() : null).then((payload) => { if (Array.isArray(payload?.categories)) setCategories(payload.categories.filter((category: Category) => category.active)) }).catch(() => {})
+    let cancelled = false
+    const refreshStorefront = async () => {
+      if (document.visibilityState === 'hidden' || storefrontRefreshInProgress.current) return
+      storefrontRefreshInProgress.current = true
+      try {
+        const [productsResponse, categoriesResponse] = await Promise.all([
+          fetch('/api/products', { cache: 'no-store' }),
+          fetch('/api/categories', { cache: 'no-store' }),
+        ])
+        const [productsPayload, categoriesPayload] = await Promise.all([
+          productsResponse.ok ? productsResponse.json() : null,
+          categoriesResponse.ok ? categoriesResponse.json() : null,
+        ])
+        if (cancelled) return
+        if (Array.isArray(productsPayload?.products)) setProducts(productsPayload.products)
+        if (Array.isArray(categoriesPayload?.categories)) setCategories(categoriesPayload.categories.filter((category: Category) => category.active))
+      } catch (error) {
+        if (!cancelled) console.error('Could not refresh storefront catalog.', error)
+      } finally {
+        storefrontRefreshInProgress.current = false
+      }
     }
+    void refreshStorefront()
     const timer = window.setInterval(refreshStorefront, 3000)
     const handleVisibility = () => { if (document.visibilityState === 'visible') refreshStorefront() }
     document.addEventListener('visibilitychange', handleVisibility)
-    return () => { window.clearInterval(timer); document.removeEventListener('visibilitychange', handleVisibility) }
+    return () => { cancelled = true; window.clearInterval(timer); document.removeEventListener('visibilitychange', handleVisibility) }
   }, [])
 
   useEffect(() => {

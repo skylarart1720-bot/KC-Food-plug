@@ -13,7 +13,7 @@ Open `http://localhost:3000`.
 
 ## Production image and catalog storage
 
-Connect a Vercel Blob store to the Vercel project so `BLOB_READ_WRITE_TOKEN` is available to deployments. Product images and catalog changes need persistent Blob storage; production uploads and catalog edits report a configuration error rather than appearing to succeed when storage is unavailable. Local development can still use the `data/catalog.json` file fallback.
+Connect a Vercel Blob store to the Vercel project so `BLOB_READ_WRITE_TOKEN` is available to deployments. Product images and catalog changes need persistent Blob storage; production uploads and catalog edits report a configuration error rather than appearing to succeed when storage is unavailable. Local development can still use the `data/catalog.json` file fallback. Catalog reads refresh the short-lived per-instance cache, and saves only remove records explicitly deleted from the snapshot so concurrent Vercel instances do not erase newer products or categories.
 
 ## Current vertical slice
 

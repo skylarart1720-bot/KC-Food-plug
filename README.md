@@ -11,6 +11,10 @@ npm run dev
 
 Open `http://localhost:3000`.
 
+## Production image and catalog storage
+
+Connect a Vercel Blob store to the Vercel project so `BLOB_READ_WRITE_TOKEN` is available to deployments. Product images and catalog changes need persistent Blob storage; production uploads and catalog edits report a configuration error rather than appearing to succeed when storage is unavailable. Local development can still use the `data/catalog.json` file fallback.
+
 ## Current vertical slice
 
 - Responsive storefront with KFC and Chickenman menu tabs

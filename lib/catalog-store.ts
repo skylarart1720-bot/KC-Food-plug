@@ -1,6 +1,6 @@
 import fs from 'node:fs'
 import path from 'node:path'
-import { get, put } from '@vercel/blob'
+import { del as deleteBlob, get, list, put } from '@vercel/blob'
 
 export type Restaurant = 'KFC' | 'Chickenman'
 
@@ -56,16 +56,44 @@ export const carouselStore = catalog.carousel
 let hydrated = false
 let storageReady = false
 let mutationQueue = Promise.resolve()
+let entityStorageInitialized = false
+
+async function readEntityCollection<T>(prefix: string): Promise<T[] | null> {
+  const result = await list({ prefix })
+  if (!result.blobs.length) return null
+  return Promise.all(result.blobs.map(async (blob) => JSON.parse(await (await fetch(blob.url, { cache: 'no-store' })).text()) as T))
+}
+
+async function persistEntityCollection<T extends { id: string }>(prefix: string, before: T[], after: T[], writeAll: boolean) {
+  const previous = new Map(before.map((item) => [item.id, JSON.stringify(item)]))
+  const current = new Map(after.map((item) => [item.id, JSON.stringify(item)]))
+  const existing = await list({ prefix })
+  await Promise.all(after.filter((item) => writeAll || previous.get(item.id) !== current.get(item.id)).map((item) => put(`${prefix}/${item.id}.json`, JSON.stringify(item), { access: 'public', addRandomSuffix: false, allowOverwrite: true, contentType: 'application/json' })))
+  if (!writeAll) await Promise.all(existing.blobs.filter((blob) => !current.has(blob.pathname.split('/').pop()?.replace(/\.json$/, '') || '')).map((blob) => deleteBlob(blob.url)))
+}
+
 export async function hydrateCatalog(force = false) {
   if (hydrated && !force) return storageReady
   try {
-    const blob = await get('catalog.json', { access: 'public' })
-    if (blob) {
-      const saved = JSON.parse(await new Response(blob.stream).text()) as Partial<CatalogSnapshot>
-      if (Array.isArray(saved.products) && Array.isArray(saved.categories) && Array.isArray(saved.carousel)) {
-        catalog.products.splice(0, catalog.products.length, ...saved.products.map((product) => ({ ...product, active: product.active !== false })))
-        catalog.categories.splice(0, catalog.categories.length, ...saved.categories)
-        catalog.carousel.splice(0, catalog.carousel.length, ...saved.carousel)
+    const [products, categories, carousel] = await Promise.all([
+      readEntityCollection<Product>('catalog/products'),
+      readEntityCollection<Category>('catalog/categories'),
+      readEntityCollection<CarouselSlide>('catalog/carousel'),
+    ])
+    if (products || categories || carousel) {
+      entityStorageInitialized = true
+      if (products) catalog.products.splice(0, catalog.products.length, ...products.map((product) => ({ ...product, active: product.active !== false })))
+      if (categories) catalog.categories.splice(0, catalog.categories.length, ...categories)
+      if (carousel) catalog.carousel.splice(0, catalog.carousel.length, ...carousel)
+    } else {
+      const blob = await get('catalog.json', { access: 'public' })
+      if (blob) {
+        const saved = JSON.parse(await new Response(blob.stream).text()) as Partial<CatalogSnapshot>
+        if (Array.isArray(saved.products) && Array.isArray(saved.categories) && Array.isArray(saved.carousel)) {
+          catalog.products.splice(0, catalog.products.length, ...saved.products.map((product) => ({ ...product, active: product.active !== false })))
+          catalog.categories.splice(0, catalog.categories.length, ...saved.categories)
+          catalog.carousel.splice(0, catalog.carousel.length, ...saved.carousel)
+        }
       }
     }
     storageReady = true
@@ -81,23 +109,38 @@ export async function mutateCatalog<T>(mutator: () => Promise<T> | T): Promise<T
   const previous = mutationQueue
   mutationQueue = new Promise<void>((resolve) => { release = resolve })
   await previous
+  let before: CatalogSnapshot | undefined
   try {
     const loaded = await hydrateCatalog(true)
     if (!loaded && !fs.existsSync(filePath)) throw new Error('Catalog storage is temporarily unavailable. Existing catalog was protected.')
+    before = { products: productStore.map((item) => ({ ...item })), categories: categoryStore.map((item) => ({ ...item })), carousel: carouselStore.map((item) => ({ ...item })) }
     const result = await mutator()
-    await persistCatalog()
+    await persistCatalog(before)
     return result
+  } catch (error) {
+    if (before) {
+      productStore.splice(0, productStore.length, ...before.products)
+      categoryStore.splice(0, categoryStore.length, ...before.categories)
+      carouselStore.splice(0, carouselStore.length, ...before.carousel)
+    }
+    throw error
   } finally {
     release()
   }
 }
 
-export async function persistCatalog() {
-  try {
+export async function persistCatalog(before?: CatalogSnapshot) {
+  if (process.env.BLOB_READ_WRITE_TOKEN) {
     await externalizeDataImages()
+    const previous = before || { products: [], categories: [], carousel: [] }
+    await persistEntityCollection('catalog/products', previous.products, productStore, !entityStorageInitialized)
+    await persistEntityCollection('catalog/categories', previous.categories, categoryStore, !entityStorageInitialized)
+    await persistEntityCollection('catalog/carousel', previous.carousel, carouselStore, !entityStorageInitialized)
+    entityStorageInitialized = true
     await put('catalog.json', JSON.stringify(catalog), { access: 'public', addRandomSuffix: false, allowOverwrite: true, contentType: 'application/json' })
     return
-  } catch {}
+  }
+  if (process.env.VERCEL) throw new Error('Catalog storage is not configured. Connect Vercel Blob storage before saving catalog changes.')
   fs.mkdirSync(path.dirname(filePath), { recursive: true })
   const temporaryPath = `${filePath}.tmp`
   fs.writeFileSync(temporaryPath, JSON.stringify(catalog, null, 2), 'utf8')
